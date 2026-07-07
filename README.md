@@ -19,8 +19,30 @@
 
 ---
 
+## 🛡️ Concurrency & Overbooking Prevention Guarantee (Q&A)
+
+> **Q: Overbooking একদমই হবে না। একই সময়ে অনেক রিকোয়েস্ট এলে মোট কনফার্মড সিট কখনো উপলব্ধ সিটের বেশি হবে না। কীভাবে এটা নিশ্চিত করেছেন?**
+> 
+> **A: We guarantee that overbooking is structurally impossible through PostgreSQL Exclusive Row-Level Locking (`SELECT ... FOR UPDATE`) combined with Atomic Database Transactions.**
+>
+> Under high concurrency (e.g., thousands of simultaneous requests for the last 5 seats), a naive "read-then-write" approach suffers from the **Lost Update** race condition where multiple threads read the same stale capacity and check out successfully.
+> 
+> SeatFlow prevents this at the database level:
+> 1. **Exclusive Row-Level Lock (`SELECT FOR UPDATE`):** When the async worker processes a booking, it enters a transaction and executes:
+>    ```sql
+>    SELECT "remainingSeats" FROM "events" WHERE "id" = $eventId FOR UPDATE;
+>    ```
+>    This locks the target event row exclusively. Any other concurrent transaction attempting to read/update this specific event row is **blocked at the database level** and queued by PostgreSQL.
+> 2. **Serialised execution:** Worker B cannot read the remaining seats until Worker A finishes checking, updates the seats, and commits its transaction. Once committed, Worker B reads the *fresh, updated* seat count.
+> 3. **Atomic check & write:** If seats are available, the worker decrements the count and confirms the booking. If seats are sold out, the booking is marked `FAILED` with `FailureReason.SOLD_OUT`. This entire sequence is run inside a single Prisma `$transaction`. If any step fails, PostgreSQL performs an automatic rollback, ensuring no partial state is written.
+>
+> This design ensures that **total confirmed seats will never exceed available seats**, regardless of request volume.
+
+---
+
 ## Table of Contents
 
+- [🛡️ Concurrency & Overbooking Prevention Guarantee (Q&A)](#️-concurrency--overbooking-prevention-guarantee-qa)
 - [Project Overview](#-project-overview)
 - [Tech Stack](#-tech-stack)
 - [Architecture](#-architecture)
