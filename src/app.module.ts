@@ -18,6 +18,7 @@ import { WorkersModule } from './modules/workers/workers.module';
 import { RedisModule } from './infrastructure/redis';
 import { LoggingModule } from './common/logger/logging.module';
 import { HealthModule } from './modules/health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 /**
  * AppModule — root application module.
@@ -49,6 +50,7 @@ import { HealthModule } from './modules/health/health.module';
     EventsModule,
     BookingsModule,
     HealthModule,
+    AdminModule,
 
     // Queue infrastructure
     QueueModule,

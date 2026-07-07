@@ -64,6 +64,15 @@ export class BookingsRepository {
   }
 
   /**
+   * Find the first event in the database (ordered by date/creation).
+   */
+  async findFirstEvent(): Promise<Event | null> {
+    return this.prisma.event.findFirst({
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
    * Paginated query with dynamic filtering, searching, and sorting.
    * Runs findMany + count in a single $transaction for efficiency.
    */

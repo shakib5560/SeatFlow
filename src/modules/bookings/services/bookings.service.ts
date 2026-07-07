@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ServiceUnavailableException, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { BookingsRepository } from '../repositories/bookings.repository';
 import { BookingReferenceService } from './booking-reference.service';
@@ -38,13 +39,24 @@ export class BookingsService {
    *   fetch and return the winner's booking. Client gets 202 either way — no error.
    */
   async create(data: CreateBookingDto): Promise<BookingResponseDto> {
-    this.logger.log(`Processing booking request: requestId=${data.requestId}, eventId=${data.eventId}`);
+    const requestId = data.requestId || randomUUID();
+    let eventId = data.eventId;
+
+    if (!eventId) {
+      const firstEvent = await this.bookingsRepository.findFirstEvent();
+      if (!firstEvent) {
+        throw new NotFoundException('No events are currently registered in the database.');
+      }
+      eventId = firstEvent.id;
+    }
+
+    this.logger.log(`Processing booking request: requestId=${requestId}, eventId=${eventId}`);
 
     // ── Layer 1: Pre-check for duplicate requestId (optimistic fast path) ────
-    const existingBooking = await this.bookingsRepository.findByRequestId(data.requestId);
+    const existingBooking = await this.bookingsRepository.findByRequestId(requestId);
     if (existingBooking) {
       this.logger.log(
-        `[Layer 1] Duplicate request detected: requestId=${data.requestId}. ` +
+        `[Layer 1] Duplicate request detected: requestId=${requestId}. ` +
         `Returning existing booking reference=${existingBooking.bookingReference}`
       );
       return {
@@ -55,10 +67,10 @@ export class BookingsService {
     }
 
     // ── Verify the event exists (only needed for new requests) ────────────────
-    const event = await this.bookingsRepository.findEventById(data.eventId);
+    const event = await this.bookingsRepository.findEventById(eventId);
     if (!event) {
-      this.logger.warn(`Event not found: eventId=${data.eventId}`);
-      throw new NotFoundException(`Event with ID ${data.eventId} does not exist`);
+      this.logger.warn(`Event not found: eventId=${eventId}`);
+      throw new NotFoundException(`Event with ID ${eventId} does not exist`);
     }
 
     // ── Generate reference and attempt DB insert ───────────────────────────────
@@ -67,15 +79,15 @@ export class BookingsService {
     let booking;
     try {
       booking = await this.bookingsRepository.createPendingBooking({
-        eventId: data.eventId,
+        eventId,
         bookingReference,
-        requestId: data.requestId,
+        requestId,
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         seats: data.seats,
       });
 
-      this.logger.log(`Pending booking created: reference=${booking.bookingReference}, requestId=${data.requestId}`);
+      this.logger.log(`Pending booking created: reference=${booking.bookingReference}, requestId=${requestId}`);
     } catch (error) {
       // ── Layer 2: Unique constraint violation recovery (P2002) ───────────────
       // Concurrent request with the same requestId already committed. Recover
@@ -85,11 +97,11 @@ export class BookingsService {
         error.code === 'P2002'
       ) {
         this.logger.warn(
-          `[Layer 2] Unique constraint violation on requestId=${data.requestId}. ` +
+          `[Layer 2] Unique constraint violation on requestId=${requestId}. ` +
           `Recovering by fetching the winning concurrent booking.`
         );
 
-        const recovered = await this.bookingsRepository.findByRequestId(data.requestId);
+        const recovered = await this.bookingsRepository.findByRequestId(requestId);
         if (recovered) {
           this.logger.log(
             `[Layer 2] Recovery successful: returning existing booking reference=${recovered.bookingReference}`
@@ -121,7 +133,7 @@ export class BookingsService {
 
     // ── Invalidate stale caches ───────────────────────────────────────────────
     await this.redisService.invalidate(`bookings:user:${data.customerEmail}*`);
-    await this.redisService.invalidate(`bookings:event:${data.eventId}*`);
+    await this.redisService.invalidate(`bookings:event:${eventId}*`);
 
     return {
       bookingReference: booking.bookingReference,

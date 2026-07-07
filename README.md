@@ -192,7 +192,8 @@ AppModule
 ├── EventsModule        — GET /events
 ├── BookingsModule      — POST /bookings, GET /bookings
 ├── WorkersModule       — BookingWorker, BookingProcessingService
-└── HealthModule        — GET /health, /health/live, /health/ready
+├── HealthModule        — GET /health, /health/live, /health/ready
+└── AdminModule         — GET /admin/bookings/pending, PATCH /approve, PATCH /reject
 ```
 
 ---
@@ -580,6 +581,169 @@ GET /api/bookings?page=1&limit=10&status=CONFIRMED&sortBy=createdAt&order=DESC H
   "timestamp": "2026-07-08T01:35:00.000Z"
 }
 ```
+
+---
+
+### Admin API Endpoints
+
+Admins can list pending bookings, retrieve details, approve, or reject pending booking requests.
+
+#### `GET /api/admin/bookings/pending`
+
+Retrieve a paginated, filterable, sortable list of all bookings in `PENDING` status.
+
+**Request**
+```http
+GET /api/admin/bookings/pending?page=1&limit=10 HTTP/1.1
+Host: localhost:3000
+```
+
+**Response `200 OK`**
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Pending bookings retrieved successfully.",
+  "data": {
+    "data": [
+      {
+        "bookingId": "d3b07384-d113-4bf5-a5d9-43c3d5e2a499",
+        "bookingReference": "BK-20260708-000015",
+        "customerName": "John Doe",
+        "customerEmail": "john@example.com",
+        "event": {
+          "id": "d3b07384-d113-4bf5-a5d9-43c3d5e2a201",
+          "name": "NestJS Masterclass"
+        },
+        "requestedSeats": 2,
+        "status": "PENDING",
+        "createdAt": "2026-07-08T00:00:00.000Z"
+      }
+    ],
+    "meta": {
+      "page": 1,
+      "limit": 10,
+      "totalItems": 1,
+      "totalPages": 1,
+      "hasNextPage": false,
+      "hasPreviousPage": false
+    }
+  },
+  "timestamp": "2026-07-08T01:30:00.000Z"
+}
+```
+
+---
+
+#### `GET /api/admin/bookings/:bookingId`
+
+Retrieve full details for any specific booking.
+
+**Request**
+```http
+GET /api/admin/bookings/d3b07384-d113-4bf5-a5d9-43c3d5e2a499 HTTP/1.1
+Host: localhost:3000
+```
+
+**Response `200 OK`**
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Booking details retrieved successfully.",
+  "data": {
+    "bookingId": "d3b07384-d113-4bf5-a5d9-43c3d5e2a499",
+    "bookingReference": "BK-20260708-000015",
+    "customerName": "John Doe",
+    "customerEmail": "john@example.com",
+    "event": {
+      "id": "d3b07384-d113-4bf5-a5d9-43c3d5e2a201",
+      "name": "NestJS Masterclass"
+    },
+    "requestedSeats": 2,
+    "status": "PENDING",
+    "failureReason": null,
+    "createdAt": "2026-07-08T00:00:00.000Z",
+    "updatedAt": "2026-07-08T00:00:00.000Z"
+  },
+  "timestamp": "2026-07-08T01:30:00.000Z"
+}
+```
+
+---
+
+#### `PATCH /api/admin/bookings/:bookingId/approve`
+
+Approve a pending booking request. Executes a concurrency-safe PostgreSQL transaction with raw row locking on the `Event` row to deduct seats atomically.
+
+**Request**
+```http
+PATCH /api/admin/bookings/d3b07384-d113-4bf5-a5d9-43c3d5e2a499/approve HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+
+{
+  "reason": "Verified and approved.",
+  "notes": "VIP Client."
+}
+```
+
+**Response `200 OK` — Success**
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Booking approved successfully.",
+  "data": {
+    "bookingReference": "BK-20260708-000015",
+    "status": "CONFIRMED",
+    "failureReason": null,
+    "updatedAt": "2026-07-08T01:30:00.000Z"
+  },
+  "timestamp": "2026-07-08T01:30:00.000Z"
+}
+```
+
+**Error Responses**
+* `409 Conflict`: If the booking is already processed (status is `CONFIRMED` or `FAILED`), or if event capacity is exhausted (`SOLD_OUT`).
+* `404 Not Found`: Booking ID does not exist.
+
+---
+
+#### `PATCH /api/admin/bookings/:bookingId/reject`
+
+Reject a pending booking request. Updates the booking status to `FAILED` with `ADMIN_REJECTED` reason without modifying event seats.
+
+**Request**
+```http
+PATCH /api/admin/bookings/d3b07384-d113-4bf5-a5d9-43c3d5e2a499/reject HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+
+{
+  "reason": "Invalid email formatting."
+}
+```
+
+**Response `200 OK` — Success**
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Booking rejected successfully.",
+  "data": {
+    "bookingReference": "BK-20260708-000015",
+    "status": "FAILED",
+    "failureReason": "ADMIN_REJECTED",
+    "updatedAt": "2026-07-08T01:30:00.000Z"
+  },
+  "timestamp": "2026-07-08T01:30:00.000Z"
+}
+```
+
+**Error Responses**
+* `409 Conflict`: If the booking is already processed (status is `CONFIRMED` or `FAILED`).
+* `404 Not Found`: Booking ID does not exist.
 
 ---
 

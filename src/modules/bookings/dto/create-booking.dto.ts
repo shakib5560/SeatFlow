@@ -1,22 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID, IsString, IsNotEmpty, IsInt, Min, MaxLength, MinLength, IsEmail } from 'class-validator';
+import { IsUUID, IsString, IsNotEmpty, IsInt, Min, MaxLength, MinLength, IsEmail, IsOptional } from 'class-validator';
 
 export class CreateBookingDto {
   @ApiProperty({
-    description: 'A unique UUID v4 idempotency token to prevent duplicate requests',
+    description: 'A unique UUID v4 idempotency token to prevent duplicate requests. Automatically generated if not provided.',
     example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301',
+    required: false,
   })
   @IsUUID('4')
-  @IsNotEmpty()
-  requestId: string;
+  @IsOptional()
+  requestId?: string;
 
   @ApiProperty({
-    description: 'The ID of the event to book seats for (UUID)',
+    description: 'The ID of the event to book seats for (UUID). Automatically falls back to the first available event if not provided.',
     example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201',
+    required: false,
   })
   @IsUUID('4')
-  @IsNotEmpty()
-  eventId: string;
+  @IsOptional()
+  eventId?: string;
 
   @ApiProperty({
     description: 'Full name of the customer booking the seats',
