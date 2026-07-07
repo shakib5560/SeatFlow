@@ -21,7 +21,7 @@
 
 ## 🛡️ Concurrency & Overbooking Prevention Guarantee (Q&A)
 
-> **Q: Overbooking একদমই হবে না। একই সময়ে অনেক রিকোয়েস্ট এলে মোট কনফার্মড সিট কখনো উপলব্ধ সিটের বেশি হবে না। কীভাবে এটা নিশ্চিত করেছেন?**
+> **Q: How is overbooking absolutely prevented? If many concurrent requests arrive at the same time, how do you guarantee that the total number of confirmed seats will never exceed the available seats?**
 > 
 > **A: We guarantee that overbooking is structurally impossible through PostgreSQL Exclusive Row-Level Locking (`SELECT ... FOR UPDATE`) combined with Atomic Database Transactions.**
 >
