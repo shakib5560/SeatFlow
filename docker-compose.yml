@@ -1,0 +1,110 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SeatFlow — Production Docker Compose
+#
+# Database: Neon (cloud PostgreSQL) — no local PostgreSQL container needed.
+# Redis 8: Used for caching, BullMQ queue, and session storage.
+#
+# Usage:
+#   docker compose up -d               # Start all services
+#   docker compose logs -f app         # Follow application logs
+#   docker compose down                # Stop all services
+#   docker compose down -v             # Stop and remove volumes (wipes Redis data)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Redis 8 — caching, BullMQ queue, session storage
+  #
+  # WHY redis:8-alpine:
+  # - Redis 8 introduced significant memory efficiency improvements and
+  #   new data structures. Alpine keeps the image small (~30 MB).
+  #
+  # WHY appendonly yes:
+  # - By default Redis is in-memory only. appendonly enables AOF (Append Only
+  #   File) persistence — every write is logged to disk. On restart, Redis
+  #   replays the log to restore state. Without this, a container restart loses
+  #   ALL data including queued BullMQ jobs.
+  #
+  # WHY --maxmemory-policy allkeys-lru:
+  # - When Redis reaches its memory limit, it evicts the least-recently-used
+  #   keys. This is the correct policy for a cache — stale data is removed
+  #   first. Without this, Redis refuses new writes when full (noeviction).
+  # ─────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:8-alpine
+    container_name: seatflow_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --loglevel notice
+    volumes:
+      # Named volume — Redis AOF log and RDB snapshots persist across restarts.
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - seatflow_network
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # NestJS Application
+  # ─────────────────────────────────────────────────────────────────────────
+  app:
+    container_name: seatflow_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # env_file loads .env from host at runtime — secrets are never baked into
+    # the image. .env is in .dockerignore so it stays off the image layer.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      # Inside Docker Compose, services communicate by their service name.
+      # REDIS_HOST must be 'redis' (the service name above), not 'localhost'.
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_KEY_PREFIX: "seatflow:"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/api', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    networks:
+      - seatflow_network
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Named Volumes
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  redis_data:
+    driver: local
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Networks — isolated bridge so containers talk by name, not host ports
+# ─────────────────────────────────────────────────────────────────────────────
+networks:
+  seatflow_network:
+    driver: bridge

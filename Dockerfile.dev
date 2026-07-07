@@ -1,0 +1,43 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SeatFlow — Development Dockerfile (hot reload)
+#
+# This is NOT used in production. It's designed for fast iteration:
+#   - All devDependencies are installed (ts-node, @nestjs/cli, etc.)
+#   - Source code is mounted as a volume (not copied)
+#   - Runs nest start --watch for hot reload
+# ═══════════════════════════════════════════════════════════════════════════════
+
+FROM node:24-slim
+
+# Install system dependencies
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        openssl \
+        ca-certificates \
+        dumb-init && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install ALL dependencies (including devDeps — needed for ts-node, @nestjs/cli)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Generate Prisma Client
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+RUN npx prisma generate
+
+# Source code is mounted via volume in docker-compose.dev.yml
+# We don't COPY src/ here — that's intentional.
+# Copy tsconfig so the TypeScript compiler can find it
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+
+EXPOSE 3000
+# Debug port
+EXPOSE 9229
+
+ENTRYPOINT ["dumb-init", "--"]
+
+# Hot reload with file watching
+CMD ["npm", "run", "start:dev"]

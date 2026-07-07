@@ -1,0 +1,50 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+model Event {
+  id             String    @id @default(uuid())
+  name           String
+  description    String?
+  eventDate      DateTime
+  totalSeats     Int
+  remainingSeats Int
+  price          Float
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  bookings       Booking[]
+
+  @@map("events")
+  @@index([eventDate])
+}
+
+model Booking {
+  id               String        @id @default(uuid())
+  bookingReference String        @unique
+  requestId        String        @unique
+  customerName     String
+  customerEmail    String
+  seats            Int
+  status           BookingStatus @default(PENDING)
+  failureReason    String?
+  eventId          String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  event            Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+  @@index([status])
+  @@index([eventId])
+  @@index([createdAt])
+}
+

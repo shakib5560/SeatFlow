@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SeatFlow — Development Docker Compose (hot reload)
+#
+# Extends docker-compose.yml with dev-specific overrides.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# What's different from production:
+#   - Uses a separate Dockerfile stage (dev) with ts-node / nest start --watch
+#   - Mounts your local src/ directory so file changes hot-reload instantly
+#   - node_modules are kept inside the container (anonymous volume trick)
+#     to prevent your host node_modules from overwriting the container's
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  redis:
+    # Redis is the same in dev — reuse the production definition
+    image: redis:7-alpine
+
+  app:
+    container_name: seatflow_app_dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    # In dev, we DON'T restart — let failures surface immediately
+    restart: "no"
+    ports:
+      - "3000:3000"
+      # Expose debug port for Node.js inspector (VSCode, Chrome DevTools)
+      - "9229:9229"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      # Mount host source code → enables hot reload without rebuild
+      - ./src:/app/src
+      # Mount prisma schema changes
+      - ./prisma:/app/prisma
+      - ./prisma.config.ts:/app/prisma.config.ts
+      # Anonymous volume trick: keeps the container's node_modules intact
+      # even though we mounted the host project directory above.
+      # Without this, the host's (potentially missing) node_modules would
+      # overwrite the container's installed packages.
+      - /app/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy

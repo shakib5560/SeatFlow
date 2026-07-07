@@ -1,0 +1,45 @@
+# ── Version control ──────────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ── Node modules (reinstalled inside container) ───────────────────────────────
+node_modules
+
+# ── Build output (rebuilt inside container) ───────────────────────────────────
+dist
+build
+
+# ── Prisma generated client (regenerated inside container) ────────────────────
+generated
+
+# ── Test files ────────────────────────────────────────────────────────────────
+coverage
+test
+
+# ── Local environment secrets (NEVER bake secrets into image) ────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Docker files themselves ───────────────────────────────────────────────────
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Editor / OS files ────────────────────────────────────────────────────────
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+
+# ── TypeScript incremental build cache ───────────────────────────────────────
+*.tsbuildinfo
+
+# ── README ───────────────────────────────────────────────────────────────────
+README.md
