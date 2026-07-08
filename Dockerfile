@@ -144,4 +144,8 @@ ENTRYPOINT ["dumb-init", "--"]
 #   - We need a shell to chain two commands with &&.
 #   - dumb-init still wraps the shell, so signals are forwarded correctly.
 #   - prisma migrate deploy is idempotent — already-applied migrations are skipped.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+#
+# Entry point is dist/src/main.js (not dist/main.js) because prisma.config.ts
+# lives at the project root, causing tsc to widen rootDir and mirror the src/
+# subdirectory structure into dist/.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
