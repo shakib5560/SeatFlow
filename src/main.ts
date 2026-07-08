@@ -46,6 +46,17 @@ async function bootstrap() {
   // 5. Configure global route prefix
   app.setGlobalPrefix('api');
 
+  // Custom middleware to redirect root path to Swagger docs and handle favicon
+  app.use((req: any, res: any, next: any) => {
+    if (req.path === '/' || req.path === '') {
+      return res.redirect('/api-docs');
+    }
+    if (req.path === '/favicon.ico') {
+      return res.status(204).end();
+    }
+    next();
+  });
+
   // 6. Configure Swagger
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Event Booking System API')
