@@ -32,6 +32,12 @@ RUN apt-get update -qq && \
         dumb-init && \
     rm -rf /var/lib/apt/lists/*
 
+# Pin npm to a specific v11 release.
+# npm 12 (released 2026-07) introduced breaking changes to `npm ci` that cause
+# the build to fail. Pinning here ensures reproducible builds regardless of
+# which npm ships inside the base node:24-slim image.
+RUN npm install -g npm@11
+
 # Create a non-root user and group for security.
 # Running as root inside a container is a security risk — if the process is
 # compromised, the attacker has root inside the container layer.
