@@ -1,0 +1,95 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SeatFlow — Render Infrastructure Blueprint
+#
+# Declares all services needed to run SeatFlow in a single file.
+# Render reads this file when you connect the repo and provisions everything
+# automatically — no manual dashboard clicks required.
+#
+# Services:
+#   • seatflow-api    — NestJS web service (Docker runtime)
+#   • seatflow-db     — Render managed PostgreSQL 16
+#   • seatflow-redis  — Render managed Redis 7
+#
+# Usage:
+#   1. Push this file to your GitHub repo.
+#   2. Go to https://dashboard.render.com/select-repo
+#   3. Select the repo — Render will detect render.yaml and provision all services.
+#   4. Set any missing env vars in the dashboard (see envVars below).
+#
+# Docs: https://render.com/docs/blueprint-spec
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Web Service — NestJS API (Docker runtime)
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: seatflow-api
+    runtime: docker
+    # Render builds from the Dockerfile in the repo root.
+    # The production stage is used (multi-stage build, final lean image).
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Render routes HTTPS traffic to this port inside the container.
+    # Must match the PORT env var (default 3000 in our app; Render sets 10000).
+    # Render injects PORT automatically — our app reads it via ConfigService.
+    healthCheckPath: /api
+
+    # Render's free plan uses shared CPU. Upgrade to Standard for production.
+    plan: starter
+
+    # Scale to 1 instance (increase for production workloads)
+    numInstances: 1
+
+    envVars:
+      # ── Auto-injected from linked services ────────────────────────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: seatflow-db
+          property: connectionString
+
+      - key: REDIS_URL
+        fromService:
+          name: seatflow-redis
+          type: redis
+          property: connectionString
+
+      # ── Runtime configuration ──────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+
+      # ── Optional overrides ────────────────────────────────────────────────
+      # Uncomment and set in Render dashboard if needed:
+      # - key: REDIS_KEY_PREFIX
+      #   value: seatflow:
+      # - key: REQUEST_TIMEOUT
+      #   value: "15000"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Redis — Render managed Redis 7
+  #
+  # WHY managed Redis instead of a Redis container?
+  #   Render Web Services are stateless and ephemeral — volumes are not
+  #   persisted across deploys. A managed Redis service persists independently.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: redis
+    name: seatflow-redis
+    plan: starter
+    # maxmemoryPolicy: allkeys-lru ensures Redis evicts LRU keys when full
+    # rather than rejecting writes (important for BullMQ job queues).
+    maxmemoryPolicy: allkeys-lru
+    # ipAllowList: [] means only internal Render services can connect.
+    # Your web service connects via the internal network — no public exposure.
+    ipAllowList: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PostgreSQL — Render managed PostgreSQL 16
+# ─────────────────────────────────────────────────────────────────────────────
+databases:
+  - name: seatflow-db
+    plan: starter
+    databaseName: seatflow
+    user: seatflow
+    # PostgreSQL version 16 (Render default as of 2024)
+    postgresMajorVersion: "16"

@@ -12,13 +12,23 @@ class EnvironmentVariables {
   @IsString()
   DATABASE_URL!: string;
 
-  @IsString()
-  REDIS_HOST!: string;
+  // ── Redis connection ───────────────────────────────────────────────────────
+  // Provide either REDIS_URL (Render / Upstash / Redis Cloud) or the
+  // individual REDIS_HOST + REDIS_PORT + REDIS_PASSWORD vars (local Docker).
 
+  @IsOptional()
+  @IsString()
+  REDIS_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  REDIS_HOST?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(65535)
-  REDIS_PORT!: number;
+  REDIS_PORT?: number;
 
   @IsOptional()
   @IsString()
@@ -76,5 +86,17 @@ export function validate(config: Record<string, unknown>) {
         .join('\n')}`,
     );
   }
+
+  // Cross-field validation: must have REDIS_URL or REDIS_HOST+REDIS_PORT
+  if (
+    !validatedConfig.REDIS_URL &&
+    (!validatedConfig.REDIS_HOST || validatedConfig.REDIS_PORT === undefined)
+  ) {
+    throw new Error(
+      'Config validation failed: provide either REDIS_URL or both REDIS_HOST and REDIS_PORT.',
+    );
+  }
+
   return validatedConfig;
 }
+

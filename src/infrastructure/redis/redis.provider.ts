@@ -55,76 +55,75 @@ export const RedisProvider: Provider = {
       );
     }
 
-    const client = new Redis({
-      host: config.host,
-      port: config.port,
-      password: config.password || undefined,
-      db: config.db,
-      // Key prefix — ioredis prepends this to EVERY key automatically.
-      // This namespaces all app keys under 'seatflow:' preventing collisions
-      // when multiple services or environments share a Redis instance.
+    // ── Retry / reconnect callbacks (shared between both connection modes) ────
+    const retryStrategy = (attempt: number): number | null => {
+      if (attempt >= MAX_RETRY_ATTEMPTS) {
+        logger.error(
+          `Redis: gave up reconnecting after ${MAX_RETRY_ATTEMPTS} attempts. ` +
+            `The application will continue without Redis (degraded mode).`,
+        );
+        return null;
+      }
+      const delay = Math.min(100 * Math.pow(2, attempt), 30_000);
+      logger.warn(
+        `Redis: reconnect attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS} in ${delay}ms`,
+      );
+      return delay;
+    };
+
+    const reconnectOnError = (err: Error): boolean | 1 | 2 => {
+      const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT'];
+      const shouldReconnect = targetErrors.some((e) =>
+        err.message.includes(e),
+      );
+      if (shouldReconnect) {
+        logger.warn(`Redis: reconnecting due to error: ${err.message}`);
+      }
+      return shouldReconnect;
+    };
+
+    // ── Shared options (applied regardless of connection mode) ────────────────
+    const sharedOptions = {
       keyPrefix: config.keyPrefix,
-
-      // ── Connection settings ────────────────────────────────────────────────
-      // How long to wait for a connection before throwing an error.
       connectTimeout: 10_000,
-      // Timeout for a single command. Prevents hung operations.
       commandTimeout: 5_000,
-      // Keep the connection alive with TCP keepalive pings.
       keepAlive: 10_000,
-      // Buffer commands while reconnecting instead of throwing errors.
-      // This prevents thundering herd — if Redis is briefly unavailable,
-      // commands queue up and execute once connected.
       enableOfflineQueue: true,
-      // Maximum number of queued commands when offline.
-      // Prevents unbounded memory growth if Redis is down for a long time.
       maxRetriesPerRequest: 3,
+      retryStrategy,
+      reconnectOnError,
+    };
 
-      // ── TLS for production ─────────────────────────────────────────────────
-      // Uncomment when using Redis with TLS (e.g., Redis Cloud, Upstash):
-      // tls: process.env.NODE_ENV === 'production' ? {} : undefined,
+    let client: Redis;
 
-      // ── Retry strategy (exponential back-off) ─────────────────────────────
-      retryStrategy(attempt: number): number | null {
-        if (attempt >= MAX_RETRY_ATTEMPTS) {
-          logger.error(
-            `Redis: gave up reconnecting after ${MAX_RETRY_ATTEMPTS} attempts. ` +
-              `The application will continue without Redis (degraded mode).`,
-          );
-          // Returning null tells ioredis to stop retrying.
-          return null;
-        }
-
-        // Exponential back-off: 100ms, 200ms, 400ms … capped at 30s
-        const delay = Math.min(100 * Math.pow(2, attempt), 30_000);
-        logger.warn(
-          `Redis: reconnect attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS} in ${delay}ms`,
-        );
-        return delay;
-      },
-
-      // ── Reconnect-on-error strategy ────────────────────────────────────────
-      // Called when a command-level error occurs. Return true to force a
-      // reconnect (useful for READONLY errors in Redis Cluster failover).
-      reconnectOnError(err: Error): boolean | 1 | 2 {
-        const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT'];
-        const shouldReconnect = targetErrors.some((e) =>
-          err.message.includes(e),
-        );
-        if (shouldReconnect) {
-          logger.warn(`Redis: reconnecting due to error: ${err.message}`);
-        }
-        return shouldReconnect;
-      },
-    });
+    if (config.url) {
+      // ── URL mode (Render / Upstash / Redis Cloud) ─────────────────────────
+      // ioredis parses the URL automatically:
+      //   redis://  → plain TCP
+      //   rediss:// → TLS (Render's managed Redis always uses rediss://)
+      // We do NOT pass host/port/password — they are embedded in the URL.
+      logger.log(`Redis: connecting via URL (TLS=${config.url.startsWith('rediss://')})`);
+      client = new Redis(config.url, sharedOptions);
+    } else {
+      // ── Host/port mode (local Docker Compose) ─────────────────────────────
+      client = new Redis({
+        host: config.host,
+        port: config.port,
+        password: config.password || undefined,
+        db: config.db,
+        ...sharedOptions,
+      });
+    }
 
     // ── Connection event logging ───────────────────────────────────────────────
-    // These events allow monitoring without external APM tools during development.
-
     client.on('connect', () => {
-      logger.log(
-        `Redis: connecting to ${config.host}:${config.port} (db=${config.db})`,
-      );
+      if (config.url) {
+        logger.log(`Redis: connecting…`);
+      } else {
+        logger.log(
+          `Redis: connecting to ${config.host}:${config.port} (db=${config.db})`,
+        );
+      }
     });
 
     client.on('ready', () => {
@@ -150,3 +149,4 @@ export const RedisProvider: Provider = {
     return client;
   },
 };
+

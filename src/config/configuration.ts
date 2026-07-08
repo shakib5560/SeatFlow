@@ -5,6 +5,10 @@ export default () => ({
     url: process.env.DATABASE_URL,
   },
   redis: {
+    // REDIS_URL takes precedence (Render managed Redis / Upstash / Redis Cloud).
+    // When set, the provider uses it directly as a connection string.
+    // When absent, fall back to individual vars (local Docker Compose).
+    url: process.env.REDIS_URL || undefined,
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     // Optional: password for Redis AUTH command. Leave empty for open Redis.

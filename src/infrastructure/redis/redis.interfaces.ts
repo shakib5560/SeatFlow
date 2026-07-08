@@ -26,6 +26,8 @@ import { Redis, RedisOptions } from 'ioredis';
  * Matches the `redis` namespace in src/config/configuration.ts.
  */
 export interface IRedisConfig {
+  /** Full connection URL (e.g. rediss://... from Render / Upstash). Takes precedence over host/port. */
+  url?: string;
   host: string;
   port: number;
   password?: string;

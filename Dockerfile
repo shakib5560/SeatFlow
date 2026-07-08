@@ -131,5 +131,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 #   causing a 10-second forced kill instead of graceful shutdown.
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the compiled application
-CMD ["node", "dist/main"]
+# Run pending migrations then start the application.
+# Why a shell wrapper instead of dumb-init exec?
+#   - We need a shell to chain two commands with &&.
+#   - dumb-init still wraps the shell, so signals are forwarded correctly.
+#   - prisma migrate deploy is idempotent — already-applied migrations are skipped.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
