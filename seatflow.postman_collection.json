@@ -1,0 +1,466 @@
+{
+  "info": {
+    "_postman_id": "seatflow-api-v1",
+    "name": "SeatFlow API",
+    "description": "SeatFlow Event Booking System API — Production-ready NestJS backend. All responses are wrapped in a standard JSON envelope. Authentication uses Bearer tokens on admin endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "your-admin-bearer-token-here",
+      "type": "string"
+    },
+    {
+      "key": "roomId",
+      "value": "d3b07384-d113-4bf5-a5d9-43c3d5e2a501",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Monitoring",
+      "item": [
+        {
+          "name": "GET /health — Detailed health diagnostics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Returns connection status and latency metrics for Database, Redis, and BullMQ queues. Response is NOT wrapped in the standard envelope."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /health/ready — Kubernetes readiness probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Returns HTTP 200 'READY' if all services are up, HTTP 503 'NOT_READY' if any dependency is down."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /health/live — Kubernetes liveness probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "live"]
+            },
+            "description": "Returns HTTP 200 'LIVENESS_UP' immediately. Does not check dependencies."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "GET /rooms — List all rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms"]
+            },
+            "description": "Returns the static list of all 10 conference/meeting rooms (A1 to A10)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /rooms/:roomId/availability — Full booking calendar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomId}}/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomId}}", "availability"]
+            },
+            "description": "Returns the full booking calendar for this room (all PENDING and CONFIRMED bookings)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /rooms/:roomId/availability — Check specific date range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomId}}/availability?startDate=2026-08-01&endDate=2026-08-07",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomId}}", "availability"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2026-08-01",
+                  "description": "Start date (ISO 8601, YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-08-07",
+                  "description": "End date (ISO 8601, YYYY-MM-DD, inclusive)"
+                }
+              ]
+            },
+            "description": "Checks if a room is available for a specific date range. Returns `available: true/false`, conflicting bookings, and next available date."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "GET /events — List all upcoming events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "description": "Returns all rooms mapped to legacy event format, sorted by name ascending."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "POST /bookings — Create a booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-request-id",
+                "value": "{{$guid}}",
+                "description": "Idempotency key — use a unique UUID per request attempt. Reusing the same value returns the existing booking."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"d3b07384-d113-4bf5-a5d9-43c3d5e2a501\",\n  \"requestId\": \"{{$guid}}\",\n  \"customerName\": \"John Doe\",\n  \"customerEmail\": \"john@example.com\",\n  \"bookingType\": \"DAILY\",\n  \"startDate\": \"2026-08-01\",\n  \"endDate\": \"2026-08-07\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Creates a new booking. The `requestId` field is an idempotency key — sending the same requestId twice returns the existing booking instead of creating a duplicate.\n\n**Booking Types:** `DAILY`, `WEEKLY`, `MONTHLY`\n\n**Status Flow:** `PENDING` → `CONFIRMED` (via admin approval) or `FAILED`"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /bookings — List bookings (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings?page=1&limit=10&status=PENDING&sortBy=createdAt&order=DESC",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (min: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (min: 1, max: 100)"
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "description": "Filter by status: PENDING, CONFIRMED, FAILED",
+                  "disabled": true
+                },
+                {
+                  "key": "roomId",
+                  "value": "d3b07384-d113-4bf5-a5d9-43c3d5e2a501",
+                  "description": "Filter by room UUID",
+                  "disabled": true
+                },
+                {
+                  "key": "customerEmail",
+                  "value": "john",
+                  "description": "Filter by customer email (partial, case-insensitive)",
+                  "disabled": true
+                },
+                {
+                  "key": "bookingReference",
+                  "value": "BK-2026",
+                  "description": "Filter by booking reference (partial, case-insensitive)",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Sort field: createdAt, startDate, customerName, status"
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "Sort direction: ASC or DESC"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all bookings with optional filtering and sorting."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin — Bookings",
+      "item": [
+        {
+          "name": "GET /admin/bookings/pending — List pending bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "description": "Admin Bearer token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bookings/pending?page=1&limit=10&sortBy=createdAt&order=ASC",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "bookings", "pending"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "customerEmail",
+                  "value": "john",
+                  "disabled": true
+                },
+                {
+                  "key": "customerName",
+                  "value": "Doe",
+                  "disabled": true
+                },
+                {
+                  "key": "roomId",
+                  "value": "d3b07384-d113-4bf5-a5d9-43c3d5e2a501",
+                  "disabled": true
+                },
+                {
+                  "key": "bookingReference",
+                  "value": "BK-2026",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Sort field: createdAt, customerName, status, startDate"
+                },
+                {
+                  "key": "order",
+                  "value": "ASC"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all bookings with status=PENDING awaiting admin action."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /admin/bookings — List all bookings (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bookings?page=1&limit=10&status=CONFIRMED&sortBy=createdAt&order=DESC",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "bookings"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "CONFIRMED",
+                  "description": "PENDING | CONFIRMED | FAILED",
+                  "disabled": true
+                },
+                {
+                  "key": "customerEmail",
+                  "value": "john",
+                  "disabled": true
+                },
+                {
+                  "key": "customerName",
+                  "value": "Doe",
+                  "disabled": true
+                },
+                {
+                  "key": "roomId",
+                  "value": "d3b07384-d113-4bf5-a5d9-43c3d5e2a501",
+                  "disabled": true
+                },
+                {
+                  "key": "bookingReference",
+                  "value": "BK-2026",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "order",
+                  "value": "DESC"
+                }
+              ]
+            },
+            "description": "Returns all bookings across all statuses with full filtering, sorting, and pagination. Admin only."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /admin/bookings/:bookingId — Get booking detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "bookings", "{{bookingId}}"]
+            },
+            "description": "Returns full details of a single booking by UUID. Includes room info and audit timestamps."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /admin/bookings/:bookingId/approve — Approve booking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Verified customer identity and confirmed seat availability.\",\n  \"notes\": \"VIP customer — priority handling applied.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/bookings/{{bookingId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "bookings", "{{bookingId}}", "approve"]
+            },
+            "description": "Transitions a booking from PENDING to CONFIRMED. Both body fields are optional (audit metadata). Returns 409 if already CONFIRMED or FAILED."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /admin/bookings/:bookingId/reject — Reject booking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Room unavailable due to maintenance.\",\n  \"notes\": \"Customer notified via email.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/bookings/{{bookingId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "bookings", "{{bookingId}}", "reject"]
+            },
+            "description": "Transitions a booking from PENDING to FAILED. Both body fields are optional. Returns 409 if already CONFIRMED or FAILED."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,17 @@
-import { Controller, Get, HttpCode, HttpStatus, Res, Logger } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiServiceUnavailableResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Res,
+  Logger,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiServiceUnavailableResponse,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { HealthService } from '../services/health.service';
 import { HealthResponseDto } from '../responses/health.response.dto';
@@ -19,7 +31,8 @@ export class HealthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Detailed system health diagnostics',
-    description: 'Returns connection status and latency metrics for Database, Redis, and BullMQ queues.',
+    description:
+      'Returns connection status and latency metrics for Database, Redis, and BullMQ queues.',
   })
   @ApiOkResponse({
     description: 'Diagnostics compiled successfully.',
@@ -37,10 +50,14 @@ export class HealthController {
   @Get('ready')
   @ApiOperation({
     summary: 'Kubernetes readiness probe',
-    description: 'Verifies database, redis, and queue connections are active. Returns HTTP 503 if any fail.',
+    description:
+      'Verifies database, redis, and queue connections are active. Returns HTTP 503 if any fail.',
   })
   @ApiOkResponse({ description: 'All systems operational.', type: String })
-  @ApiServiceUnavailableResponse({ description: 'One or more dependencies are DOWN.', type: String })
+  @ApiServiceUnavailableResponse({
+    description: 'One or more dependencies are DOWN.',
+    type: String,
+  })
   async checkReadiness(@Res() res: Response) {
     this.logger.log('Readiness verification requested');
     const isReady = await this.healthService.isReady();
@@ -58,10 +75,11 @@ export class HealthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Kubernetes liveness probe',
-    description: 'Checks if the Node.js process is active. Responds immediately with no dependency checks.',
+    description:
+      'Checks if the Node.js process is active. Responds immediately with no dependency checks.',
   })
   @ApiOkResponse({ description: 'Process is alive.', type: String })
-  async checkLiveness(@Res() res: Response) {
+  checkLiveness(@Res() res: Response) {
     this.logger.log('Liveness check requested');
     return res.status(HttpStatus.OK).send('LIVENESS_UP');
   }

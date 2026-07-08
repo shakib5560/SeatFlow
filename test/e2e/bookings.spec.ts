@@ -10,11 +10,24 @@ import { BookingsService } from '../../src/modules/bookings/services/bookings.se
 import { ResponseInterceptor } from '../../src/common/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from '../../src/common/filters/global-exception.filter';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { BookingResponseDto } from '../../src/modules/bookings/responses/booking-response.dto';
+import { BookingItemDto } from '../../src/modules/bookings/responses/paginated-bookings.dto';
+import { BookingType, BookingStatus } from '@prisma/client';
 
 describe('BookingsController (e2e)', () => {
   let app: INestApplication;
   let bookingsService: DeepMockProxy<BookingsService>;
   let controller: BookingsController;
+
+  const validDto = {
+    roomId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201',
+    requestId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301',
+    customerName: 'Test Customer',
+    customerEmail: 'test@example.com',
+    bookingType: BookingType.DAILY,
+    startDate: '2026-08-01',
+    endDate: '2026-08-07',
+  };
 
   beforeAll(async () => {
     bookingsService = mockDeep<BookingsService>();
@@ -42,18 +55,13 @@ describe('BookingsController (e2e)', () => {
   });
 
   it('POST /bookings — creates a new booking and returns PENDING status', async () => {
-    bookingsService.create.mockResolvedValue({
+    const mockResponse: BookingResponseDto = {
       bookingReference: 'BK-2026-001',
-      status: 'PENDING',
-    } as any);
+      status: BookingStatus.PENDING,
+    };
+    bookingsService.create.mockResolvedValue(mockResponse);
 
-    const result = await controller.create({
-      eventId: '1',
-      requestId: `req-${Date.now()}-${Math.random()}`,
-      customerName: 'Test Customer',
-      customerEmail: 'test@example.com',
-      seats: 2,
-    });
+    const result = await controller.create(validDto);
 
     expect(result.bookingReference).toBe('BK-2026-001');
     expect(result.status).toBe('PENDING');
@@ -61,8 +69,14 @@ describe('BookingsController (e2e)', () => {
   });
 
   it('GET /bookings — returns paginated booking list', async () => {
+    const mockData: BookingItemDto[] = [
+      {
+        bookingReference: 'BK-2026-001',
+        status: BookingStatus.PENDING,
+      } as BookingItemDto,
+    ];
     bookingsService.listBookings.mockResolvedValue({
-      data: [{ bookingReference: 'BK-2026-001', status: 'PENDING' } as any],
+      data: mockData,
       meta: {
         totalItems: 1,
         totalPages: 1,
@@ -79,18 +93,17 @@ describe('BookingsController (e2e)', () => {
   });
 
   it('GET /bookings with duplicate requestId — returns existing booking with message', async () => {
-    bookingsService.create.mockResolvedValue({
+    const existingResponse: BookingResponseDto = {
       bookingReference: 'BK-EXISTING',
-      status: 'CONFIRMED',
+      status: BookingStatus.CONFIRMED,
       message: 'Duplicate request. Returning existing booking.',
-    } as any);
+    };
+    bookingsService.create.mockResolvedValue(existingResponse);
 
     const result = await controller.create({
-      eventId: '1',
+      ...validDto,
       requestId: 'existing-req-id',
-      customerName: 'Duplicate User',
       customerEmail: 'dup@example.com',
-      seats: 1,
     });
 
     expect(result.bookingReference).toBe('BK-EXISTING');

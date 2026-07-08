@@ -1,4 +1,11 @@
-import { Controller, Get, Query, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Logger,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { EventsService } from '../services/events.service';
 import { EventResponseDto } from '../responses/event.response.dto';
@@ -22,7 +29,8 @@ export class EventsController {
   @ResponseMessage('Events retrieved successfully.')
   @ApiOperation({
     summary: 'Retrieve all upcoming events',
-    description: 'Fetches all scheduled events, sorted chronologically with soonest events appearing first.',
+    description:
+      'Fetches all scheduled events, sorted chronologically with soonest events appearing first.',
   })
   @ApiOkResponse({
     description: 'List of events retrieved successfully.',
@@ -31,12 +39,14 @@ export class EventsController {
   })
   async findAll(@Query() query: QueryEventsDto): Promise<EventResponseDto[]> {
     this.logger.log(
-      `Incoming request: GET /events | QueryParams: page=${query.page ?? 'default'}, limit=${query.limit ?? 'default'}, search=${query.search ?? 'none'}`
+      `Incoming request: GET /events | QueryParams: page=${query.page ?? 'default'}, limit=${query.limit ?? 'default'}, search=${query.search ?? 'none'}`,
     );
 
     const events = await this.eventsService.findAll();
 
-    this.logger.log(`Successful request completion: GET /events | Count: ${events.length}`);
+    this.logger.log(
+      `Successful request completion: GET /events | Count: ${events.length}`,
+    );
     return events;
   }
 }

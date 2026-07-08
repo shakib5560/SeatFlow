@@ -76,8 +76,6 @@ import { AdminModule } from './modules/admin/admin.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RequestIdMiddleware, RateLimitMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestIdMiddleware, RateLimitMiddleware).forRoutes('*');
   }
 }

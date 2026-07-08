@@ -22,12 +22,16 @@ export class BookingProcessingService {
    * before the migration to manual approvals complete safely.
    */
   async processBooking(bookingId: string): Promise<void> {
-    this.logger.log(`processBooking called: bookingId=${bookingId} (manual-approval mode — no auto-processing)`);
+    this.logger.log(
+      `processBooking called: bookingId=${bookingId} (manual-approval mode — no auto-processing)`,
+    );
 
     // Load booking to check current state.
     const booking = await this.bookingsRepository.findById(bookingId);
     if (!booking) {
-      this.logger.warn(`Booking not found: bookingId=${bookingId}. Discarding job.`);
+      this.logger.warn(
+        `Booking not found: bookingId=${bookingId}. Discarding job.`,
+      );
       return;
     }
 
@@ -37,14 +41,14 @@ export class BookingProcessingService {
       booking.status === BookingStatus.FAILED
     ) {
       this.logger.warn(
-        `Booking ${booking.bookingReference} is already in terminal state (${booking.status}). Skipping.`
+        `Booking ${booking.bookingReference} is already in terminal state (${booking.status}). Skipping.`,
       );
       return;
     }
 
     // In manual-approval mode, PENDING bookings are left for admin to review.
     this.logger.log(
-      `Booking ${booking.bookingReference} is PENDING — awaiting admin approval. No automatic action taken.`
+      `Booking ${booking.bookingReference} is PENDING — awaiting admin approval. No automatic action taken.`,
     );
   }
 }

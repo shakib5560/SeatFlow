@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { RoomsRepository } from '../repositories/rooms.repository';
 import {
   RoomDto,
@@ -59,7 +64,9 @@ export class RoomsService {
 
     // ── Date range availability check ─────────────────────────────────────────
     if (!startStr || !endStr) {
-      throw new BadRequestException('Both startDate and endDate must be provided together.');
+      throw new BadRequestException(
+        'Both startDate and endDate must be provided together.',
+      );
     }
 
     const startDate = this.parseDate(startStr);
@@ -69,9 +76,15 @@ export class RoomsService {
       throw new BadRequestException('endDate must be on or after startDate.');
     }
 
-    this.logger.log(`Checking availability for room ${room.name}: ${startStr} → ${endStr}`);
+    this.logger.log(
+      `Checking availability for room ${room.name}: ${startStr} → ${endStr}`,
+    );
 
-    const availability = await this.roomsRepository.checkAvailability(roomId, startDate, endDate);
+    const availability = await this.roomsRepository.checkAvailability(
+      roomId,
+      startDate,
+      endDate,
+    );
 
     const conflictDtos: BookedRangeDto[] = availability.available
       ? []
@@ -88,12 +101,14 @@ export class RoomsService {
       requestedStartDate: startDate,
       requestedEndDate: endDate,
       available: availability.available,
-      nextAvailableDate: availability.available ? undefined : availability.nextAvailableDate,
+      nextAvailableDate: availability.available
+        ? undefined
+        : availability.nextAvailableDate,
       message: availability.available
         ? `Room ${room.name} is available for the requested dates.`
-        : `Room ${room.name} is not available from ${startStr} to ${endStr}. Next available date: ${
-            this.formatDate(availability.nextAvailableDate)
-          }.`,
+        : `Room ${room.name} is not available from ${startStr} to ${endStr}. Next available date: ${this.formatDate(
+            availability.nextAvailableDate,
+          )}.`,
       conflictingBookings: conflictDtos,
     };
 
@@ -106,7 +121,9 @@ export class RoomsService {
   private parseDate(dateStr: string): Date {
     const d = new Date(`${dateStr}T00:00:00.000Z`);
     if (isNaN(d.getTime())) {
-      throw new BadRequestException(`Invalid date format: ${dateStr}. Use YYYY-MM-DD.`);
+      throw new BadRequestException(
+        `Invalid date format: ${dateStr}. Use YYYY-MM-DD.`,
+      );
     }
     return d;
   }

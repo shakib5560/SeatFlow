@@ -42,7 +42,9 @@ import { IRedisConfig, IRedisService } from './redis.interfaces';
  *   and JSON.parse('"abc"') = 'abc'.
  */
 @Injectable()
-export class RedisService implements IRedisService, OnModuleInit, OnModuleDestroy {
+export class RedisService
+  implements IRedisService, OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(RedisService.name);
   private readonly keyPrefix: string;
 
@@ -237,7 +239,11 @@ export class RedisService implements IRedisService, OnModuleInit, OnModuleDestro
    *
    * With remember(), this collapses to one line.
    */
-  async remember<T>(key: string, ttl: number, factory: () => Promise<T>): Promise<T> {
+  async remember<T>(
+    key: string,
+    ttl: number,
+    factory: () => Promise<T>,
+  ): Promise<T> {
     const cacheKey = this.buildKey(REDIS_NAMESPACE.CACHE, key);
 
     const cached = await this.get<T>(cacheKey);
@@ -256,7 +262,11 @@ export class RedisService implements IRedisService, OnModuleInit, OnModuleDestro
    * getOrSet() — alias for remember() with a different argument order.
    * Some teams find this signature more readable.
    */
-  async getOrSet<T>(key: string, factory: () => Promise<T>, ttl: number): Promise<T> {
+  async getOrSet<T>(
+    key: string,
+    factory: () => Promise<T>,
+    ttl: number,
+  ): Promise<T> {
     return this.remember<T>(key, ttl, factory);
   }
 
@@ -278,14 +288,18 @@ export class RedisService implements IRedisService, OnModuleInit, OnModuleDestro
     const keys = await this.scanKeys(fullPattern);
 
     if (keys.length === 0) {
-      this.logger.debug(`Cache invalidate: no keys matched pattern '${fullPattern}'`);
+      this.logger.debug(
+        `Cache invalidate: no keys matched pattern '${fullPattern}'`,
+      );
       return;
     }
 
     // Strip the keyPrefix from keys before calling DEL — ioredis adds it back.
     const strippedKeys = keys.map((k) => k.slice(this.keyPrefix.length));
     await this.client.del(...strippedKeys);
-    this.logger.log(`Cache invalidated: ${keys.length} keys matching '${fullPattern}'`);
+    this.logger.log(
+      `Cache invalidated: ${keys.length} keys matching '${fullPattern}'`,
+    );
   }
 
   /**
@@ -336,7 +350,9 @@ export class RedisService implements IRedisService, OnModuleInit, OnModuleDestro
    */
   async flush(): Promise<void> {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('flush() is disabled in production to prevent accidental data loss.');
+      throw new Error(
+        'flush() is disabled in production to prevent accidental data loss.',
+      );
     }
     await this.client.flushdb();
     this.logger.warn('Redis database flushed (all keys deleted)');

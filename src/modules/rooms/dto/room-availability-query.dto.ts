@@ -8,7 +8,8 @@ import { IsDateString, IsOptional } from 'class-validator';
  */
 export class RoomAvailabilityQueryDto {
   @ApiPropertyOptional({
-    description: 'Start date of the desired booking period (ISO 8601, e.g. 2026-07-10)',
+    description:
+      'Start date of the desired booking period (ISO 8601, e.g. 2026-07-10)',
     example: '2026-07-10',
   })
   @IsOptional()
@@ -16,7 +17,8 @@ export class RoomAvailabilityQueryDto {
   startDate?: string;
 
   @ApiPropertyOptional({
-    description: 'End date of the desired booking period (ISO 8601, e.g. 2026-07-17)',
+    description:
+      'End date of the desired booking period (ISO 8601, e.g. 2026-07-17)',
     example: '2026-07-17',
   })
   @IsOptional()

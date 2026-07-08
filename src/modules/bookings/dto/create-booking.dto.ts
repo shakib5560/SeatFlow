@@ -1,10 +1,19 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsString, IsNotEmpty, IsEmail, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsUUID,
+  IsString,
+  IsNotEmpty,
+  IsEmail,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+} from 'class-validator';
 import { BookingType } from '@prisma/client';
 
 export class CreateBookingDto {
   @ApiProperty({
-    description: 'A unique UUID v4 idempotency token to prevent duplicate requests. Automatically generated if not provided.',
+    description:
+      'A unique UUID v4 idempotency token to prevent duplicate requests. Automatically generated if not provided.',
     example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301',
     required: false,
   })
@@ -56,7 +65,8 @@ export class CreateBookingDto {
   startDate: string;
 
   @ApiProperty({
-    description: 'End date of the booking period (ISO 8601 YYYY-MM-DD, inclusive)',
+    description:
+      'End date of the booking period (ISO 8601 YYYY-MM-DD, inclusive)',
     example: '2026-07-17',
   })
   @IsDateString()

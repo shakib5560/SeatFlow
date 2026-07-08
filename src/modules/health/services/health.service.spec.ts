@@ -7,6 +7,10 @@ import { QueueHealthService } from './queue-health.service';
 import { MetricsService } from './metrics.service';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 
+type QueueStatus = Awaited<ReturnType<QueueHealthService['check']>>;
+type MemoryUsage = ReturnType<MetricsService['getMemoryUsage']>;
+type CpuUsage = ReturnType<MetricsService['getCpuUsage']>;
+
 describe('HealthService', () => {
   let service: HealthService;
   let configService: DeepMockProxy<ConfigService>;
@@ -14,6 +18,23 @@ describe('HealthService', () => {
   let redisHealth: DeepMockProxy<RedisHealthService>;
   let queueHealth: DeepMockProxy<QueueHealthService>;
   let metrics: DeepMockProxy<MetricsService>;
+
+  const mockQueueUp: QueueStatus = {
+    status: 'UP',
+    waiting: 0,
+    active: 0,
+    completed: 0,
+    failed: 0,
+    delayed: 0,
+    paused: false,
+  };
+  const mockMemory: MemoryUsage = {
+    rss: '50MB',
+    heapTotal: '30MB',
+    heapUsed: '20MB',
+    external: '1MB',
+  };
+  const mockCpu: CpuUsage = { user: '10ms', system: '5ms' };
 
   beforeEach(async () => {
     configService = mockDeep<ConfigService>();
@@ -40,10 +61,10 @@ describe('HealthService', () => {
     it('should return UP if all dependencies are UP', async () => {
       dbHealth.check.mockResolvedValue({ status: 'UP', latency: '5ms' });
       redisHealth.check.mockResolvedValue({ status: 'UP', latency: '2ms' });
-      queueHealth.check.mockResolvedValue({ status: 'UP' } as any);
+      queueHealth.check.mockResolvedValue(mockQueueUp);
       configService.get.mockReturnValue('test');
-      metrics.getMemoryUsage.mockReturnValue({ rss: '1MB' } as any);
-      metrics.getCpuUsage.mockReturnValue({ user: '1ms' } as any);
+      metrics.getMemoryUsage.mockReturnValue(mockMemory);
+      metrics.getCpuUsage.mockReturnValue(mockCpu);
 
       const result = await service.getHealthDetails();
 
@@ -56,8 +77,11 @@ describe('HealthService', () => {
 
     it('should return DOWN if any dependency is DOWN', async () => {
       dbHealth.check.mockResolvedValue({ status: 'UP', latency: '5ms' });
-      redisHealth.check.mockResolvedValue({ status: 'DOWN', latency: 'timeout' });
-      queueHealth.check.mockResolvedValue({ status: 'UP' } as any);
+      redisHealth.check.mockResolvedValue({
+        status: 'DOWN',
+        latency: 'timeout',
+      });
+      queueHealth.check.mockResolvedValue(mockQueueUp);
 
       const result = await service.getHealthDetails();
 
@@ -70,7 +94,7 @@ describe('HealthService', () => {
     it('should return true if all dependencies are UP', async () => {
       dbHealth.check.mockResolvedValue({ status: 'UP', latency: '5ms' });
       redisHealth.check.mockResolvedValue({ status: 'UP', latency: '2ms' });
-      queueHealth.check.mockResolvedValue({ status: 'UP' } as any);
+      queueHealth.check.mockResolvedValue(mockQueueUp);
 
       const result = await service.isReady();
 
@@ -80,7 +104,7 @@ describe('HealthService', () => {
     it('should return false if database is DOWN', async () => {
       dbHealth.check.mockResolvedValue({ status: 'DOWN', latency: 'timeout' });
       redisHealth.check.mockResolvedValue({ status: 'UP', latency: '2ms' });
-      queueHealth.check.mockResolvedValue({ status: 'UP' } as any);
+      queueHealth.check.mockResolvedValue(mockQueueUp);
 
       const result = await service.isReady();
 

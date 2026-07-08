@@ -19,22 +19,23 @@ export interface StandardApiResponse<T> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, StandardApiResponse<T>>
-{
+export class ResponseInterceptor<T> implements NestInterceptor<
+  T,
+  StandardApiResponse<T> | T
+> {
   constructor(private readonly reflector: Reflector) {}
 
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<StandardApiResponse<T>> {
+  ): Observable<StandardApiResponse<T> | T> {
     const httpContext = context.switchToHttp();
     const request = httpContext.getRequest<Request>();
     const response = httpContext.getResponse<Response>();
 
     // Exclude health check endpoints from standard wrapping to match raw formats
     if (request.originalUrl.includes('/health')) {
-      return next.handle();
+      return next.handle() as Observable<T>;
     }
 
     // Retrieve custom message set by @ResponseMessage, fallback to a standard string
@@ -43,7 +44,7 @@ export class ResponseInterceptor<T>
       'Request processed successfully.';
 
     return next.handle().pipe(
-      map((data) => ({
+      map((data: T) => ({
         success: true,
         statusCode: response.statusCode,
         message,

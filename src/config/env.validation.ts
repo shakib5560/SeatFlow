@@ -1,5 +1,12 @@
 import { plainToInstance } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Max, Min, validateSync } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 class EnvironmentVariables {
   @IsString()
@@ -44,19 +51,28 @@ export function validate(config: Record<string, unknown>) {
     {
       ...config,
       PORT: config.PORT !== undefined ? Number(config.PORT) : undefined,
-      REDIS_PORT: config.REDIS_PORT !== undefined ? Number(config.REDIS_PORT) : undefined,
+      REDIS_PORT:
+        config.REDIS_PORT !== undefined ? Number(config.REDIS_PORT) : undefined,
       REDIS_DB: config.REDIS_DB !== undefined ? Number(config.REDIS_DB) : 0,
-      REQUEST_TIMEOUT: config.REQUEST_TIMEOUT !== undefined ? Number(config.REQUEST_TIMEOUT) : undefined,
+      REQUEST_TIMEOUT:
+        config.REQUEST_TIMEOUT !== undefined
+          ? Number(config.REQUEST_TIMEOUT)
+          : undefined,
     },
     { enableImplicitConversion: true },
   );
-  
-  const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+
+  const errors = validateSync(validatedConfig, {
+    skipMissingProperties: false,
+  });
 
   if (errors.length > 0) {
     throw new Error(
       `Config validation failed. Please check your .env file. Errors: \n${errors
-        .map((err) => `${err.property}: ${Object.values(err.constraints || {}).join(', ')}`)
+        .map(
+          (err) =>
+            `${err.property}: ${Object.values(err.constraints || {}).join(', ')}`,
+        )
         .join('\n')}`,
     );
   }

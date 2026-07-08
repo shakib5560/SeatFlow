@@ -1,16 +1,27 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Prisma, RoomBooking, BookingStatus } from '@prisma/client';
+import { Prisma, RoomBooking } from '@prisma/client';
 import { BookingsRepository } from '../repositories/bookings.repository';
 import { RoomsRepository } from '../../rooms/repositories/rooms.repository';
 import { BookingReferenceService } from './booking-reference.service';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { BookingQueryDto } from '../dto/booking-query.dto';
 import { BookingResponseDto } from '../responses/booking-response.dto';
-import { PaginatedBookingsDto, BookingItemDto, PaginationMetaDto } from '../responses/paginated-bookings.dto';
+import {
+  PaginatedBookingsDto,
+  BookingItemDto,
+  PaginationMetaDto,
+} from '../responses/paginated-bookings.dto';
 import { RedisService, REDIS_TTL } from '../../../infrastructure/redis';
 
-const DUPLICATE_REQUEST_MESSAGE = 'Duplicate request. Returning existing booking.';
+const DUPLICATE_REQUEST_MESSAGE =
+  'Duplicate request. Returning existing booking.';
 
 @Injectable()
 export class BookingsService {
@@ -31,14 +42,17 @@ export class BookingsService {
     const requestId = data.requestId || randomUUID();
     const roomId = data.roomId;
 
-    this.logger.log(`Processing booking request: requestId=${requestId}, roomId=${roomId}`);
+    this.logger.log(
+      `Processing booking request: requestId=${requestId}, roomId=${roomId}`,
+    );
 
     // ── Layer 1: Pre-check for duplicate requestId (optimistic fast path) ────
-    const existingBooking = await this.bookingsRepository.findByRequestId(requestId);
+    const existingBooking =
+      await this.bookingsRepository.findByRequestId(requestId);
     if (existingBooking) {
       this.logger.log(
         `[Layer 1] Duplicate request detected: requestId=${requestId}. ` +
-        `Returning existing booking reference=${existingBooking.bookingReference}`
+          `Returning existing booking reference=${existingBooking.bookingReference}`,
       );
       return {
         bookingReference: existingBooking.bookingReference,
@@ -64,16 +78,23 @@ export class BookingsService {
 
     // ── Concurrency-Safe Overlap Check & Lock ──────────────────────────────
     // Check if the room is available for these dates
-    const availability = await this.roomsRepository.checkAvailability(roomId, startDate, endDate);
+    const availability = await this.roomsRepository.checkAvailability(
+      roomId,
+      startDate,
+      endDate,
+    );
     if (!availability.available) {
-      const nextDateStr = availability.nextAvailableDate.toISOString().slice(0, 10);
+      const nextDateStr = availability.nextAvailableDate
+        .toISOString()
+        .slice(0, 10);
       throw new ConflictException(
-        `This room is not available for the selected dates. Next available date: ${nextDateStr}`
+        `This room is not available for the selected dates. Next available date: ${nextDateStr}`,
       );
     }
 
     // ── Generate reference and attempt DB insert ───────────────────────────────
-    const bookingReference = await this.bookingReferenceService.generateReference();
+    const bookingReference =
+      await this.bookingReferenceService.generateReference();
 
     let booking: RoomBooking;
     try {
@@ -88,7 +109,9 @@ export class BookingsService {
         endDate,
       });
 
-      this.logger.log(`Pending booking created: reference=${booking.bookingReference}, requestId=${requestId}`);
+      this.logger.log(
+        `Pending booking created: reference=${booking.bookingReference}, requestId=${requestId}`,
+      );
     } catch (error) {
       // ── Layer 2: Unique constraint violation recovery (P2002) ───────────────
       if (
@@ -97,13 +120,14 @@ export class BookingsService {
       ) {
         this.logger.warn(
           `[Layer 2] Unique constraint violation on requestId=${requestId}. ` +
-          `Recovering by fetching the winning concurrent booking.`
+            `Recovering by fetching the winning concurrent booking.`,
         );
 
-        const recovered = await this.bookingsRepository.findByRequestId(requestId);
+        const recovered =
+          await this.bookingsRepository.findByRequestId(requestId);
         if (recovered) {
           this.logger.log(
-            `[Layer 2] Recovery successful: returning existing booking reference=${recovered.bookingReference}`
+            `[Layer 2] Recovery successful: returning existing booking reference=${recovered.bookingReference}`,
           );
           return {
             bookingReference: recovered.bookingReference,
@@ -136,19 +160,29 @@ export class BookingsService {
 
     this.logger.log(
       `Listing bookings: page=${page}, limit=${limit}, ` +
-      `status=${query.status ?? 'all'}, roomId=${query.roomId ?? 'all'}, ` +
-      `customerEmail=${query.customerEmail ?? 'all'}, sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`
+        `status=${query.status ?? 'all'}, roomId=${query.roomId ?? 'all'}, ` +
+        `customerEmail=${query.customerEmail ?? 'all'}, sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`,
     );
 
-    const { data, totalItems } = await this.bookingsRepository.findAllPaginated(query);
+    const { data, totalItems } =
+      await this.bookingsRepository.findAllPaginated(query);
 
     const totalPages = Math.ceil(totalItems / limit);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
-    this.logger.log(`Booking list retrieved: totalItems=${totalItems}, totalPages=${totalPages}`);
+    this.logger.log(
+      `Booking list retrieved: totalItems=${totalItems}, totalPages=${totalPages}`,
+    );
 
-    const meta: PaginationMetaDto = { page, limit, totalItems, totalPages, hasNextPage, hasPreviousPage };
+    const meta: PaginationMetaDto = {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasNextPage,
+      hasPreviousPage,
+    };
 
     const items: BookingItemDto[] = data.map((b) => ({
       bookingReference: b.bookingReference,
@@ -179,7 +213,7 @@ export class BookingsService {
     return this.redisService.remember(
       `bookings:user:${customerEmail}`,
       REDIS_TTL.MEDIUM,
-      () => this.bookingsRepository.findByCustomerEmail(customerEmail)
+      () => this.bookingsRepository.findByCustomerEmail(customerEmail),
     );
   }
 
@@ -190,7 +224,7 @@ export class BookingsService {
     return this.redisService.remember(
       `bookings:room:${roomId}`,
       REDIS_TTL.MEDIUM,
-      () => this.bookingsRepository.findByRoomId(roomId)
+      () => this.bookingsRepository.findByRoomId(roomId),
     );
   }
 
@@ -200,7 +234,9 @@ export class BookingsService {
   private parseDate(dateStr: string): Date {
     const d = new Date(`${dateStr}T00:00:00.000Z`);
     if (isNaN(d.getTime())) {
-      throw new BadRequestException(`Invalid date format: ${dateStr}. Use YYYY-MM-DD.`);
+      throw new BadRequestException(
+        `Invalid date format: ${dateStr}. Use YYYY-MM-DD.`,
+      );
     }
     return d;
   }

@@ -26,7 +26,9 @@ export class RateLimitMiddleware implements NestMiddleware {
 
       // Limit to 100 requests per minute
       if (current > 100) {
-        this.logger.warn(`Rate limit exceeded for IP: ${ip} | Requests count: ${current}`);
+        this.logger.warn(
+          `Rate limit exceeded for IP: ${ip} | Requests count: ${current}`,
+        );
         return res.status(HttpStatus.TOO_MANY_REQUESTS).json({
           success: false,
           statusCode: HttpStatus.TOO_MANY_REQUESTS,

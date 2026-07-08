@@ -59,7 +59,7 @@ export class RoomsRepository {
     roomId: string,
     startDate: Date,
     endDate: Date,
-  ): Promise<{ available: true } | { available: false } & RoomConflict> {
+  ): Promise<{ available: true } | ({ available: false } & RoomConflict)> {
     const conflicts = await this.prisma.roomBooking.findMany({
       where: {
         roomId,
@@ -80,6 +80,10 @@ export class RoomsRepository {
     nextAvailableDate.setUTCDate(nextAvailableDate.getUTCDate() + 1);
     nextAvailableDate.setUTCHours(0, 0, 0, 0);
 
-    return { available: false, nextAvailableDate, conflictingBookings: conflicts };
+    return {
+      available: false,
+      nextAvailableDate,
+      conflictingBookings: conflicts,
+    };
   }
 }

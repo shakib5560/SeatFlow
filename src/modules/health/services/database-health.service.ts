@@ -21,7 +21,10 @@ export class DatabaseHealthService {
         latency: `${duration}ms`,
       };
     } catch (error) {
-      this.logger.error('Database health check failed', error instanceof Error ? error.stack : error);
+      this.logger.error(
+        'Database health check failed',
+        error instanceof Error ? error.stack : error,
+      );
       return {
         status: 'DOWN',
       };

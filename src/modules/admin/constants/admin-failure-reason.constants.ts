@@ -9,4 +9,5 @@ export const AdminFailureReason = {
   SOLD_OUT: 'SOLD_OUT',
 } as const;
 
-export type AdminFailureReason = (typeof AdminFailureReason)[keyof typeof AdminFailureReason];
+export type AdminFailureReason =
+  (typeof AdminFailureReason)[keyof typeof AdminFailureReason];

@@ -1,7 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RoomBooking, Room, BookingStatus, Prisma, BookingType } from '@prisma/client';
-import { BookingQueryDto, BookingSortBy, SortOrder } from '../dto/booking-query.dto';
+import {
+  RoomBooking,
+  BookingStatus,
+  Prisma,
+  BookingType,
+} from '@prisma/client';
+import {
+  BookingQueryDto,
+  BookingSortBy,
+  SortOrder,
+} from '../dto/booking-query.dto';
 
 @Injectable()
 export class BookingsRepository {
@@ -20,7 +29,9 @@ export class BookingsRepository {
   /**
    * Find booking by its unique reference code.
    */
-  async findByBookingReference(bookingReference: string): Promise<RoomBooking | null> {
+  async findByBookingReference(
+    bookingReference: string,
+  ): Promise<RoomBooking | null> {
     return this.prisma.roomBooking.findUnique({
       where: { bookingReference },
       include: { room: true },
@@ -99,7 +110,9 @@ export class BookingsRepository {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const sortBy = query.sortBy ?? BookingSortBy.CREATED_AT;
-    const order = (query.order ?? SortOrder.DESC).toLowerCase() as Prisma.SortOrder;
+    const order = (
+      query.order ?? SortOrder.DESC
+    ).toLowerCase() as Prisma.SortOrder;
 
     // ── Build WHERE clause ────────────────────────────────────────────────────
     const where: Prisma.RoomBookingWhereInput = {};
@@ -108,10 +121,16 @@ export class BookingsRepository {
     if (query.roomId) where.roomId = query.roomId;
 
     if (query.customerEmail) {
-      where.customerEmail = { contains: query.customerEmail, mode: 'insensitive' };
+      where.customerEmail = {
+        contains: query.customerEmail,
+        mode: 'insensitive',
+      };
     }
     if (query.bookingReference) {
-      where.bookingReference = { contains: query.bookingReference, mode: 'insensitive' };
+      where.bookingReference = {
+        contains: query.bookingReference,
+        mode: 'insensitive',
+      };
     }
 
     // ── Build ORDER BY clause ─────────────────────────────────────────────────
@@ -124,8 +143,8 @@ export class BookingsRepository {
 
     const skip = (page - 1) * limit;
 
-    // ── Run findMany + count atomically ───────────────────────────────────────
-    const [data, totalItems] = await this.prisma.$transaction([
+    // ── Run findMany + count concurrently ─────────────────────────────────────
+    const [data, totalItems] = await Promise.all([
       this.prisma.roomBooking.findMany({
         where,
         orderBy,

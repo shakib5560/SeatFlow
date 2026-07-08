@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Query, Get, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Query,
+  Get,
+  Logger,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { PaginatedBookingsDto } from '../responses/paginated-bookings.dto';
 import { ResponseMessage } from '../../../common/decorators/response-message.decorator';
@@ -57,9 +66,11 @@ export class BookingsController {
   @ApiInternalServerErrorResponse({
     description: 'An unexpected database or system failure occurred.',
   })
-  async create(@Body() createBookingDto: CreateBookingDto): Promise<BookingResponseDto> {
+  async create(
+    @Body() createBookingDto: CreateBookingDto,
+  ): Promise<BookingResponseDto> {
     this.logger.log(
-      `Incoming request: POST /bookings | requestId=${createBookingDto.requestId}, roomId=${createBookingDto.roomId}`
+      `Incoming request: POST /bookings | requestId=${createBookingDto.requestId}, roomId=${createBookingDto.roomId}`,
     );
 
     const response = await this.bookingsService.create(createBookingDto);
@@ -67,7 +78,9 @@ export class BookingsController {
     const isDuplicate = !!response.message;
     this.logger.log(
       `Completed: POST /bookings | reference=${response.bookingReference}, status=${response.status}` +
-      (isDuplicate ? ' [DUPLICATE — existing booking returned]' : ' [NEW booking created]')
+        (isDuplicate
+          ? ' [DUPLICATE — existing booking returned]'
+          : ' [NEW booking created]'),
     );
     return response;
   }
@@ -88,11 +101,13 @@ export class BookingsController {
     description: 'Paginated list of bookings with metadata.',
     type: PaginatedBookingsDto,
   })
-  async listBookings(@Query() query: BookingQueryDto): Promise<PaginatedBookingsDto> {
+  async listBookings(
+    @Query() query: BookingQueryDto,
+  ): Promise<PaginatedBookingsDto> {
     this.logger.log(
       `Incoming request: GET /bookings | ` +
-      `page=${query.page ?? 1}, limit=${query.limit ?? 10}, ` +
-      `status=${query.status ?? 'all'}, sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`
+        `page=${query.page ?? 1}, limit=${query.limit ?? 10}, ` +
+        `status=${query.status ?? 'all'}, sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`,
     );
     return this.bookingsService.listBookings(query);
   }

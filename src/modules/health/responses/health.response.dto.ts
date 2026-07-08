@@ -4,7 +4,11 @@ export class ServiceStatusDto {
   @ApiProperty({ example: 'UP', description: 'Uptime status (UP or DOWN)' })
   status: string;
 
-  @ApiProperty({ example: '5ms', required: false, description: 'Service check response duration' })
+  @ApiProperty({
+    example: '5ms',
+    required: false,
+    description: 'Service check response duration',
+  })
   latency?: string;
 }
 

@@ -1,14 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { BookingStatus, Prisma, RoomBooking } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AdminBookingQueryDto, AdminBookingSortBy, SortOrder } from '../dto/admin-booking-query.dto';
+import {
+  AdminBookingQueryDto,
+  AdminBookingSortBy,
+  SortOrder,
+} from '../dto/admin-booking-query.dto';
 import { AdminFailureReason } from '../constants/admin-failure-reason.constants';
 
 /** Shape returned by findPendingBookings / findBookings */
-export type BookingWithRoom = RoomBooking & { room: { id: string; name: string } };
+export type BookingWithRoom = RoomBooking & {
+  room: { id: string; name: string };
+};
 
 /** Full booking detail shape (includes all event fields) */
-export type BookingWithFullRoom = RoomBooking & { room: { id: string; name: string; description?: string | null } };
+export type BookingWithFullRoom = RoomBooking & {
+  room: { id: string; name: string; description?: string | null };
+};
 
 /**
  * AdminBookingsRepository — pure data-access layer for admin booking operations.
@@ -31,26 +39,39 @@ export class AdminBookingsRepository {
    * Runs findMany + count in a single $transaction for consistency.
    * When called by the pending-bookings endpoint, callers set query.status = PENDING.
    */
-  async findBookings(query: AdminBookingQueryDto): Promise<{ data: BookingWithRoom[]; totalItems: number; }> {
-    const page    = query.page    ?? 1;
-    const limit   = query.limit   ?? 10;
-    const sortBy  = query.sortBy  ?? AdminBookingSortBy.CREATED_AT;
-    const order   = (query.order  ?? SortOrder.DESC).toLowerCase() as Prisma.SortOrder;
+  async findBookings(
+    query: AdminBookingQueryDto,
+  ): Promise<{ data: BookingWithRoom[]; totalItems: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const sortBy = query.sortBy ?? AdminBookingSortBy.CREATED_AT;
+    const order = (
+      query.order ?? SortOrder.DESC
+    ).toLowerCase() as Prisma.SortOrder;
 
     // ── WHERE clause ──────────────────────────────────────────────────────────
     const where: Prisma.RoomBookingWhereInput = {};
 
-    if (query.status)    where.status  = query.status;
-    if (query.roomId)    where.roomId  = query.roomId;
+    if (query.status) where.status = query.status;
+    if (query.roomId) where.roomId = query.roomId;
 
     if (query.customerEmail) {
-      where.customerEmail = { contains: query.customerEmail, mode: 'insensitive' };
+      where.customerEmail = {
+        contains: query.customerEmail,
+        mode: 'insensitive',
+      };
     }
     if (query.customerName) {
-      where.customerName = { contains: query.customerName, mode: 'insensitive' };
+      where.customerName = {
+        contains: query.customerName,
+        mode: 'insensitive',
+      };
     }
     if (query.bookingReference) {
-      where.bookingReference = { contains: query.bookingReference, mode: 'insensitive' };
+      where.bookingReference = {
+        contains: query.bookingReference,
+        mode: 'insensitive',
+      };
     }
 
     // ── ORDER BY clause ───────────────────────────────────────────────────────
@@ -71,19 +92,19 @@ export class AdminBookingsRepository {
         skip,
         take: limit,
         select: {
-          id:               true,
+          id: true,
           bookingReference: true,
-          customerName:     true,
-          customerEmail:    true,
-          requestId:        true,
-          startDate:        true,
-          endDate:          true,
-          bookingType:      true,
-          status:           true,
-          failureReason:    true,
-          roomId:           true,
-          createdAt:        true,
-          updatedAt:        true,
+          customerName: true,
+          customerEmail: true,
+          requestId: true,
+          startDate: true,
+          endDate: true,
+          bookingType: true,
+          status: true,
+          failureReason: true,
+          roomId: true,
+          createdAt: true,
+          updatedAt: true,
           room: { select: { id: true, name: true } },
         },
       }),
@@ -97,7 +118,9 @@ export class AdminBookingsRepository {
    * Find a single booking by UUID, including all event details.
    * Returns null if not found (caller decides how to handle).
    */
-  async findBookingById(bookingId: string): Promise<BookingWithFullRoom | null> {
+  async findBookingById(
+    bookingId: string,
+  ): Promise<BookingWithFullRoom | null> {
     return this.prisma.roomBooking.findUnique({
       where: { id: bookingId },
       include: { room: true },
@@ -138,9 +161,9 @@ export class AdminBookingsRepository {
     return this.prisma.roomBooking.update({
       where: { id: bookingId },
       data: {
-        status:        BookingStatus.CONFIRMED,
+        status: BookingStatus.CONFIRMED,
         failureReason: null,
-        updatedAt:     new Date(),
+        updatedAt: new Date(),
       },
     });
   }
@@ -154,9 +177,9 @@ export class AdminBookingsRepository {
     return this.prisma.roomBooking.update({
       where: { id: bookingId },
       data: {
-        status:        BookingStatus.FAILED,
+        status: BookingStatus.FAILED,
         failureReason: AdminFailureReason.ADMIN_REJECTED,
-        updatedAt:     new Date(),
+        updatedAt: new Date(),
       },
     });
   }

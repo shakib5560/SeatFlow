@@ -22,9 +22,12 @@ export class RedisHealthService {
           latency: `${duration}ms`,
         };
       }
-      throw new Error(`Unexpected Redis ping response: ${pong}`);
+      throw new Error(`Unexpected Redis ping response: ${pong as string}`);
     } catch (error) {
-      this.logger.error('Redis health check failed', error instanceof Error ? error.stack : error);
+      this.logger.error(
+        'Redis health check failed',
+        error instanceof Error ? error.stack : error,
+      );
       return {
         status: 'DOWN',
       };

@@ -2,13 +2,11 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BOOKING_QUEUE_NAME } from './queue.constants';
-import { BookingProducer } from './producers/booking.producer';
-import { QueueService } from './queue.service';
 
 /**
  * QueueModule registers the BullMQ queue with Redis configuration sourced
- * from ConfigService. It exports the queue so producer services in other
- * modules can inject it using @InjectQueue(BOOKING_QUEUE_NAME).
+ * from ConfigService. It exports BullModule so worker and health modules can
+ * inject the queue using @InjectQueue(BOOKING_QUEUE_NAME).
  */
 @Module({
   imports: [
@@ -29,7 +27,6 @@ import { QueueService } from './queue.service';
       name: BOOKING_QUEUE_NAME,
     }),
   ],
-  providers: [BookingProducer, QueueService],
-  exports: [BullModule, BookingProducer, QueueService],
+  exports: [BullModule],
 })
 export class QueueModule {}

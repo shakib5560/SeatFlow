@@ -10,11 +10,21 @@ import { EventsService } from '../../src/modules/events/services/events.service'
 import { ResponseInterceptor } from '../../src/common/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from '../../src/common/filters/global-exception.filter';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
-import * as http from 'http';
+import { EventResponseDto } from '../../src/modules/events/responses/event.response.dto';
 
 describe('EventsController (e2e)', () => {
   let app: INestApplication;
   let eventsService: DeepMockProxy<EventsService>;
+
+  const mockEvent: EventResponseDto = {
+    id: '1',
+    name: 'Test Event',
+    description: null,
+    eventDate: new Date('2026-08-07T18:30:00.000Z'),
+    totalSeats: 100,
+    remainingSeats: 80,
+    price: 0,
+  };
 
   beforeAll(async () => {
     eventsService = mockDeep<EventsService>();
@@ -40,12 +50,10 @@ describe('EventsController (e2e)', () => {
   });
 
   it('GET /events — wraps result in standard API envelope', async () => {
-    eventsService.findAll.mockResolvedValue([
-      { id: '1', name: 'Test Event' } as any,
-    ]);
+    eventsService.findAll.mockResolvedValue([mockEvent]);
 
     const controller = app.get<EventsController>(EventsController);
-    const result = await controller.findAll({} as any);
+    const result = await controller.findAll({});
 
     expect(Array.isArray(result)).toBe(true);
     expect(result[0].id).toBe('1');

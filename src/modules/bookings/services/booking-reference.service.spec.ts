@@ -45,8 +45,13 @@ describe('BookingReferenceService', () => {
       const ref = await service.generateReference();
 
       expect(ref).toEqual('BK-20260708-000001');
-      expect(redisService.increment).toHaveBeenCalledWith('booking:reference:counter:20260708');
-      expect(redisService.expire).toHaveBeenCalledWith('booking:reference:counter:20260708', 36 * 3600);
+      expect(redisService.increment).toHaveBeenCalledWith(
+        'booking:reference:counter:20260708',
+      );
+      expect(redisService.expire).toHaveBeenCalledWith(
+        'booking:reference:counter:20260708',
+        36 * 3600,
+      );
     });
 
     it('should generate a reference and NOT set TTL if sequence > 1', async () => {
@@ -55,7 +60,9 @@ describe('BookingReferenceService', () => {
       const ref = await service.generateReference();
 
       expect(ref).toEqual('BK-20260708-000042');
-      expect(redisService.increment).toHaveBeenCalledWith('booking:reference:counter:20260708');
+      expect(redisService.increment).toHaveBeenCalledWith(
+        'booking:reference:counter:20260708',
+      );
       expect(redisService.expire).not.toHaveBeenCalled();
     });
   });

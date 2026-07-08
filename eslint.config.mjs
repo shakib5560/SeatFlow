@@ -33,4 +33,12 @@ export default tseslint.config(
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
+  // Relax unbound-method for spec files: jest-mock-extended patterns require
+  // passing mock methods to `expect()` which detaches them from their context.
+  {
+    files: ['**/*.spec.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

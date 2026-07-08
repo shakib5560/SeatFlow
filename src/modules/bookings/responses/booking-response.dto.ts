@@ -16,7 +16,8 @@ export class BookingResponseDto {
   status: BookingStatus;
 
   @ApiPropertyOptional({
-    description: 'Informational message — present when a duplicate request was detected',
+    description:
+      'Informational message — present when a duplicate request was detected',
     example: 'Duplicate request. Returning existing booking.',
   })
   message?: string;

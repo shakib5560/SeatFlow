@@ -8,7 +8,7 @@ export class QueueHealthService {
   private readonly logger = new Logger(QueueHealthService.name);
 
   constructor(
-    @InjectQueue(BOOKING_QUEUE_NAME) private readonly bookingQueue: Queue
+    @InjectQueue(BOOKING_QUEUE_NAME) private readonly bookingQueue: Queue,
   ) {}
 
   /**
@@ -24,14 +24,15 @@ export class QueueHealthService {
     paused?: boolean;
   }> {
     try {
-      const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
-        this.bookingQueue.getWaitingCount(),
-        this.bookingQueue.getActiveCount(),
-        this.bookingQueue.getCompletedCount(),
-        this.bookingQueue.getFailedCount(),
-        this.bookingQueue.getDelayedCount(),
-        this.bookingQueue.isPaused(),
-      ]);
+      const [waiting, active, completed, failed, delayed, paused] =
+        await Promise.all([
+          this.bookingQueue.getWaitingCount(),
+          this.bookingQueue.getActiveCount(),
+          this.bookingQueue.getCompletedCount(),
+          this.bookingQueue.getFailedCount(),
+          this.bookingQueue.getDelayedCount(),
+          this.bookingQueue.isPaused(),
+        ]);
 
       return {
         status: 'UP',
@@ -45,7 +46,7 @@ export class QueueHealthService {
     } catch (error) {
       this.logger.error(
         'Queue health check failed',
-        error instanceof Error ? error.stack : error
+        error instanceof Error ? error.stack : error,
       );
       return {
         status: 'DOWN',

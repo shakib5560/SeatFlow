@@ -30,14 +30,16 @@ export class BookingWorker extends WorkerHost implements OnApplicationShutdown {
    * Closes the BullMQ worker connection to prevent drawing new jobs.
    */
   async onApplicationShutdown(signal?: string) {
-    this.logger.log(`Worker received shutdown signal: ${signal || 'SIGTERM'} | Closing connection...`);
+    this.logger.log(
+      `Worker received shutdown signal: ${signal || 'SIGTERM'} | Closing connection...`,
+    );
     try {
       await this.worker.close();
       this.logger.log('BullMQ worker connection closed gracefully.');
     } catch (error) {
       this.logger.error(
         'Failed to close BullMQ worker connection gracefully during shutdown',
-        error instanceof Error ? error.stack : error
+        error instanceof Error ? error.stack : error,
       );
     }
   }
@@ -47,17 +49,19 @@ export class BookingWorker extends WorkerHost implements OnApplicationShutdown {
 
     await correlationStorage.run(requestId || 'worker-job', async () => {
       this.logger.log(
-        `Job received: name=${BOOKING_JOB_NAME}, jobId=${job.id}, attempt=${job.attemptsMade + 1}, bookingId=${bookingId}`
+        `Job received: name=${BOOKING_JOB_NAME}, jobId=${job.id}, attempt=${job.attemptsMade + 1}, bookingId=${bookingId}`,
       );
 
       try {
         await this.bookingProcessingService.processBooking(bookingId);
-        this.logger.log(`Job completed: jobId=${job.id}, bookingId=${bookingId}`);
+        this.logger.log(
+          `Job completed: jobId=${job.id}, bookingId=${bookingId}`,
+        );
       } catch (error) {
         const stack = error instanceof Error ? error.stack : String(error);
         this.logger.error(
           `Unexpected error processing job jobId=${job.id}, bookingId=${bookingId}. Attempt ${job.attemptsMade + 1}.`,
-          stack
+          stack,
         );
         // Re-throw so BullMQ can retry (if attempts remain) or move to failed set.
         throw error;

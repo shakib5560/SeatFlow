@@ -14,7 +14,7 @@ export class HealthService {
     private readonly dbHealth: DatabaseHealthService,
     private readonly redisHealth: RedisHealthService,
     private readonly queueHealth: QueueHealthService,
-    private readonly metrics: MetricsService
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -71,7 +71,7 @@ export class HealthService {
 
     if (!ready) {
       this.logger.warn(
-        `Readiness verification failed | database=${dbResult.status}, redis=${redisResult.status}, queue=${queueResult.status}`
+        `Readiness verification failed | database=${dbResult.status}, redis=${redisResult.status}, queue=${queueResult.status}`,
       );
     }
     return ready;

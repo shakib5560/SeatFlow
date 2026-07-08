@@ -31,12 +31,14 @@ export class BookingReferenceService {
       const sequenceStr = String(sequence).padStart(6, '0');
       const bookingReference = `BK-${dateStr}-${sequenceStr}`;
 
-      this.logger.log(`Booking reference generated: reference=${bookingReference}`);
+      this.logger.log(
+        `Booking reference generated: reference=${bookingReference}`,
+      );
       return bookingReference;
     } catch (error) {
       this.logger.error(
         'Failed to generate daily sequence booking reference via Redis',
-        error instanceof Error ? error.stack : error
+        error instanceof Error ? error.stack : error,
       );
       throw error;
     }

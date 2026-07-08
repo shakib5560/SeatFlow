@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Logger, HttpStatus, HttpCode } from '@nestjs/common';
+import { Controller, Get, Param, Query, Logger } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -10,7 +10,11 @@ import {
 } from '@nestjs/swagger';
 import { RoomsService } from '../services/rooms.service';
 import { RoomAvailabilityQueryDto } from '../dto/room-availability-query.dto';
-import { RoomDto, RoomAvailabilityDto, RoomAvailabilityCheckDto } from '../responses/room.response.dto';
+import {
+  RoomDto,
+  RoomAvailabilityDto,
+  RoomAvailabilityCheckDto,
+} from '../responses/room.response.dto';
 import { ResponseMessage } from '../../../common/decorators/response-message.decorator';
 
 @ApiTags('Rooms')
@@ -28,7 +32,8 @@ export class RoomsController {
   @ResponseMessage('Rooms retrieved successfully.')
   @ApiOperation({
     summary: 'List all rooms',
-    description: 'Returns the static list of all 10 conference/meeting rooms (A1 to A10).',
+    description:
+      'Returns the static list of all 10 conference/meeting rooms (A1 to A10).',
   })
   @ApiOkResponse({
     description: 'List of rooms.',
@@ -65,7 +70,9 @@ export class RoomsController {
     description: 'Room availability calendar or check result.',
     type: Object, // Can be RoomAvailabilityDto or RoomAvailabilityCheckDto
   })
-  @ApiBadRequestResponse({ description: 'Invalid query parameters or malformed date range.' })
+  @ApiBadRequestResponse({
+    description: 'Invalid query parameters or malformed date range.',
+  })
   @ApiNotFoundResponse({ description: 'Room not found.' })
   @ApiInternalServerErrorResponse({ description: 'Unexpected server error.' })
   async getAvailability(
@@ -74,7 +81,7 @@ export class RoomsController {
   ): Promise<RoomAvailabilityDto | RoomAvailabilityCheckDto> {
     this.logger.log(
       `Incoming request: GET /rooms/${roomId}/availability | ` +
-      `startDate=${query.startDate ?? 'none'}, endDate=${query.endDate ?? 'none'}`
+        `startDate=${query.startDate ?? 'none'}, endDate=${query.endDate ?? 'none'}`,
     );
     return this.roomsService.getRoomAvailability(roomId, query);
   }

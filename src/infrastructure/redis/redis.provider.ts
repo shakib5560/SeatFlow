@@ -108,7 +108,9 @@ export const RedisProvider: Provider = {
       // reconnect (useful for READONLY errors in Redis Cluster failover).
       reconnectOnError(err: Error): boolean | 1 | 2 {
         const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT'];
-        const shouldReconnect = targetErrors.some((e) => err.message.includes(e));
+        const shouldReconnect = targetErrors.some((e) =>
+          err.message.includes(e),
+        );
         if (shouldReconnect) {
           logger.warn(`Redis: reconnecting due to error: ${err.message}`);
         }
@@ -120,7 +122,9 @@ export const RedisProvider: Provider = {
     // These events allow monitoring without external APM tools during development.
 
     client.on('connect', () => {
-      logger.log(`Redis: connecting to ${config.host}:${config.port} (db=${config.db})`);
+      logger.log(
+        `Redis: connecting to ${config.host}:${config.port} (db=${config.db})`,
+      );
     });
 
     client.on('ready', () => {

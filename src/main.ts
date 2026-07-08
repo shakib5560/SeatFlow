@@ -51,7 +51,7 @@ async function bootstrap() {
     .setTitle('Event Booking System API')
     .setDescription(
       'Production-ready Event Booking System API. Responses are wrapped in a standard JSON envelope ' +
-        'and logs are correlated via request correlation IDs.'
+        'and logs are correlated via request correlation IDs.',
     )
     .setVersion('1.0')
     .addBearerAuth()
@@ -65,6 +65,11 @@ async function bootstrap() {
 
   await app.listen(port, '0.0.0.0');
   logger.log(`Application is running on: http://localhost:${port}/api`);
-  logger.log(`Swagger documentation is available at: http://localhost:${port}/api-docs`);
+  logger.log(
+    `Swagger documentation is available at: http://localhost:${port}/api-docs`,
+  );
 }
-bootstrap();
+bootstrap().catch((err: unknown) => {
+  console.error('Application failed to start:', err);
+  process.exit(1);
+});

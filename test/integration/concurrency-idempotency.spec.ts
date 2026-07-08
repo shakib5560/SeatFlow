@@ -87,8 +87,9 @@ describe('Concurrency & Idempotency (Unit-level simulation)', () => {
       // Simulate: pre-check finds null (two parallel requests both pass the pre-check)
       // Then the DB throws P2002 unique constraint on requestId
       bookingsRepo.findByRequestId
-        .mockResolvedValueOnce(null)     // pre-check misses (race)
-        .mockResolvedValueOnce({         // recovery fetch
+        .mockResolvedValueOnce(null) // pre-check misses (race)
+        .mockResolvedValueOnce({
+          // recovery fetch
           id: 'bk-1',
           requestId: 'req-race',
           bookingReference: 'BK-RACE-1',
@@ -118,7 +119,11 @@ describe('Concurrency & Idempotency (Unit-level simulation)', () => {
       // Simulate the P2002 unique-constraint error on DB insert
       const p2002 = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed on the fields: (`requestId`)',
-        { code: 'P2002', clientVersion: '5.0.0', meta: { target: ['requestId'] } }
+        {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+          meta: { target: ['requestId'] },
+        },
       );
       bookingsRepo.createPendingBooking.mockRejectedValue(p2002);
 
@@ -150,15 +155,19 @@ describe('Concurrency & Idempotency (Unit-level simulation)', () => {
       roomsRepo.checkAvailability.mockResolvedValue({ available: true });
 
       let counter = 0;
-      referenceService.generateReference.mockImplementation(async () => `BK-${++counter}`);
-      bookingsRepo.createPendingBooking.mockImplementation(async (data) => ({
-        id: `bk-${data.bookingReference}`,
-        ...data,
-        status: BookingStatus.PENDING,
-        failureReason: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
+      referenceService.generateReference.mockImplementation(() =>
+        Promise.resolve(`BK-${++counter}`),
+      );
+      bookingsRepo.createPendingBooking.mockImplementation((data) =>
+        Promise.resolve({
+          id: `bk-${data.bookingReference}`,
+          ...data,
+          status: BookingStatus.PENDING,
+          failureReason: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      );
 
       const requests = Array.from({ length: 10 }).map((_, i) =>
         bookingsService.create({
@@ -169,7 +178,7 @@ describe('Concurrency & Idempotency (Unit-level simulation)', () => {
           bookingType: BookingType.DAILY,
           startDate: '2026-08-01',
           endDate: '2026-08-07',
-        })
+        }),
       );
 
       const results = await Promise.all(requests);

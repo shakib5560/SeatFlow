@@ -3,11 +3,26 @@ import { BookingsRepository } from './bookings.repository';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DeepMockProxy } from 'jest-mock-extended';
 import { createMockContext } from '../../../../test/mocks/prisma.mock';
-import { BookingStatus, BookingType } from '@prisma/client';
+import { BookingStatus, BookingType, RoomBooking } from '@prisma/client';
 
 describe('BookingsRepository', () => {
   let repository: BookingsRepository;
   let prismaMock: DeepMockProxy<PrismaService>;
+
+  const mockBooking: RoomBooking = {
+    id: '1',
+    requestId: 'req-1',
+    bookingReference: 'BK-1',
+    customerName: 'John',
+    customerEmail: 'j@e.com',
+    bookingType: BookingType.DAILY,
+    roomId: 'room-123',
+    startDate: new Date('2026-08-01T00:00:00.000Z'),
+    endDate: new Date('2026-08-07T00:00:00.000Z'),
+    status: BookingStatus.PENDING,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   beforeEach(async () => {
     const mockContext = createMockContext();
@@ -25,8 +40,7 @@ describe('BookingsRepository', () => {
 
   describe('findByRequestId', () => {
     it('should find booking by request id', async () => {
-      const mockBooking = { id: '1', requestId: 'req-1' };
-      prismaMock.roomBooking.findUnique.mockResolvedValue(mockBooking as any);
+      prismaMock.roomBooking.findUnique.mockResolvedValue(mockBooking);
 
       const result = await repository.findByRequestId('req-1');
 
@@ -51,7 +65,13 @@ describe('BookingsRepository', () => {
         endDate: new Date('2026-08-07T00:00:00.000Z'),
       };
 
-      prismaMock.roomBooking.create.mockResolvedValue({ id: '1', ...data, status: BookingStatus.PENDING } as any);
+      prismaMock.roomBooking.create.mockResolvedValue({
+        id: '1',
+        ...data,
+        status: BookingStatus.PENDING,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       const result = await repository.createPendingBooking(data);
 
@@ -68,16 +88,15 @@ describe('BookingsRepository', () => {
 
   describe('findAllPaginated', () => {
     it('should return paginated data and total items', async () => {
-      const mockBookings = [{ id: '1' }];
-      const totalItems = 1;
-      
-      prismaMock.$transaction.mockResolvedValue([mockBookings, totalItems] as any);
+      prismaMock.roomBooking.findMany.mockResolvedValue([mockBooking]);
+      prismaMock.roomBooking.count.mockResolvedValue(1);
 
       const result = await repository.findAllPaginated({ page: 1, limit: 10 });
 
-      expect(result.data).toEqual(mockBookings);
-      expect(result.totalItems).toEqual(totalItems);
-      expect(prismaMock.$transaction).toHaveBeenCalled();
+      expect(result.data).toHaveLength(1);
+      expect(result.totalItems).toEqual(1);
+      expect(prismaMock.roomBooking.findMany).toHaveBeenCalled();
+      expect(prismaMock.roomBooking.count).toHaveBeenCalled();
     });
   });
 });

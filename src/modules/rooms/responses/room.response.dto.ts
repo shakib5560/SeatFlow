@@ -63,7 +63,8 @@ export class RoomAvailabilityCheckDto {
 
   @ApiPropertyOptional({
     example: '2026-07-18T00:00:00.000Z',
-    description: 'First available date after existing bookings end. Only present when available=false.',
+    description:
+      'First available date after existing bookings end. Only present when available=false.',
   })
   nextAvailableDate?: Date;
 

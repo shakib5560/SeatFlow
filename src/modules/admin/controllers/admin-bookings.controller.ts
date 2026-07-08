@@ -14,7 +14,6 @@ import {
   ApiTags,
   ApiOperation,
   ApiOkResponse,
-  ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiConflictResponse,
@@ -84,7 +83,7 @@ export class AdminBookingsController {
   ): Promise<PaginatedAdminBookingsDto> {
     this.logger.log(
       `Admin GET /pending | page=${query.page ?? 1}, limit=${query.limit ?? 10}, ` +
-      `sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`
+        `sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`,
     );
     return this.adminBookingsService.listPendingBookings(query);
   }
@@ -110,7 +109,7 @@ export class AdminBookingsController {
   ): Promise<PaginatedAdminBookingsDto> {
     this.logger.log(
       `Admin GET / | page=${query.page ?? 1}, limit=${query.limit ?? 10}, ` +
-      `sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`
+        `sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`,
     );
     return this.adminBookingsService.listAllBookings(query);
   }
@@ -164,7 +163,8 @@ export class AdminBookingsController {
     example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a499',
   })
   @ApiOkResponse({
-    description: 'Booking approved. Returns updated booking reference and status.',
+    description:
+      'Booking approved. Returns updated booking reference and status.',
     type: AdminActionResultDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid bookingId or request body.' })
@@ -192,7 +192,7 @@ export class AdminBookingsController {
     description:
       'Rejects a booking that is currently in PENDING status. ' +
       'Sets status = FAILED with failureReason = ADMIN_REJECTED. ' +
-      'Does NOT modify the event\'s remaining seat count. ' +
+      "Does NOT modify the event's remaining seat count. " +
       '\n\nReturns 409 Conflict if the booking is already CONFIRMED or FAILED.',
   })
   @ApiParam({
@@ -201,13 +201,15 @@ export class AdminBookingsController {
     example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a499',
   })
   @ApiOkResponse({
-    description: 'Booking rejected. Returns updated booking reference and FAILED status.',
+    description:
+      'Booking rejected. Returns updated booking reference and FAILED status.',
     type: AdminActionResultDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid bookingId or request body.' })
   @ApiNotFoundResponse({ description: 'Booking not found.' })
   @ApiConflictResponse({
-    description: 'Booking is not in PENDING state — already CONFIRMED or FAILED.',
+    description:
+      'Booking is not in PENDING state — already CONFIRMED or FAILED.',
   })
   @ApiInternalServerErrorResponse({ description: 'Unexpected server error.' })
   async rejectBooking(

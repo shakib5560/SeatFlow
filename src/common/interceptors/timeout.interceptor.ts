@@ -17,20 +17,23 @@ export class TimeoutInterceptor implements NestInterceptor {
 
   constructor(private readonly configService: ConfigService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
-    const timeoutLimit = this.configService.get<number>('requestTimeout') ?? 15000;
+    const timeoutLimit =
+      this.configService.get<number>('requestTimeout') ?? 15000;
 
     return next.handle().pipe(
       timeout(timeoutLimit),
       catchError((err) => {
         if (err instanceof TimeoutError) {
           this.logger.error(
-            `Request execution exceeded timeout limit (${timeoutLimit}ms) | Path: ${request.originalUrl}`
+            `Request execution exceeded timeout limit (${timeoutLimit}ms) | Path: ${request.originalUrl}`,
           );
-          return throwError(() => new RequestTimeoutException('Request execution timed out.'));
+          return throwError(
+            () => new RequestTimeoutException('Request execution timed out.'),
+          );
         }
-        return throwError(() => err);
+        return throwError(() => err as Error);
       }),
     );
   }
