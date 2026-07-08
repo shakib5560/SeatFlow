@@ -57,11 +57,13 @@ FROM base AS deps
 # Docker layer caching: if package*.json hasn't changed, npm ci is skipped.
 COPY package.json package-lock.json ./
 
-# npm ci is faster and stricter than npm install:
-#   - Reads exactly from package-lock.json (deterministic builds)
-#   - Fails if package.json and package-lock.json are out of sync
-#   - Removes node_modules before installing (clean slate)
-RUN npm ci
+# Use npm install instead of npm ci.
+# npm ci is too strict about cross-platform lockfile differences:
+# some packages (e.g. Prisma's native query engine via @emnapi) include
+# Linux-only optional dependencies that may not be recorded in a lockfile
+# generated on another OS. npm install reads the lockfile for versions but
+# tolerates these platform-specific optional dep differences.
+RUN npm install
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3: builder
