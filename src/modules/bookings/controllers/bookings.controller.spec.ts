@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from '../services/bookings.service';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { BookingType } from '@prisma/client';
 
 describe('BookingsController', () => {
   let controller: BookingsController;
@@ -24,7 +25,15 @@ describe('BookingsController', () => {
     it('should create a booking and return 202 status implicitly via decorator', async () => {
       bookingsService.create.mockResolvedValue({ bookingReference: 'BK-1', status: 'PENDING' } as any);
       
-      const dto = { eventId: '1', requestId: '1', customerName: 'J', customerEmail: 'j@e.com', seats: 2 };
+      const dto = {
+        roomId: 'room-123',
+        requestId: 'req-456',
+        customerName: 'John Doe',
+        customerEmail: 'john@example.com',
+        bookingType: BookingType.DAILY,
+        startDate: '2026-08-01',
+        endDate: '2026-08-07',
+      };
       const result = await controller.create(dto);
       
       expect(result.bookingReference).toBe('BK-1');

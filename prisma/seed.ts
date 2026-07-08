@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, BookingType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import 'dotenv/config';
@@ -12,55 +12,37 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+const ROOMS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10'];
+
+const ROOM_DESCRIPTIONS: Record<string, string> = {
+  A1: 'Standard meeting room — capacity 8, projector included',
+  A2: 'Standard meeting room — capacity 8, whiteboard included',
+  A3: 'Standard meeting room — capacity 10, projector included',
+  A4: 'Standard meeting room — capacity 10, dual monitor setup',
+  A5: 'Large conference room — capacity 20, full AV system',
+  A6: 'Large conference room — capacity 20, video conferencing enabled',
+  A7: 'Executive boardroom — capacity 12, premium furnishings',
+  A8: 'Training room — capacity 30, classroom layout',
+  A9: 'Creative space — capacity 15, flexible open layout',
+  A10: 'Workshop room — capacity 25, equipment storage available',
+};
+
 async function main() {
-  const events = [
-    {
-      id: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201',
-      name: 'NestJS Masterclass',
-      description: 'Advanced NestJS Workshop',
-      eventDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from today
-      totalSeats: 100,
-      remainingSeats: 100,
-      price: 1200.0,
-    },
-    {
-      id: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a202',
-      name: 'React Summit',
-      description: 'Advanced React Summit',
-      eventDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 days from today
-      totalSeats: 80,
-      remainingSeats: 80,
-      price: 1500.0,
-    },
-    {
-      id: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a203',
-      name: 'AI Conference',
-      description: 'State of the art AI Conference',
-      eventDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from today
-      totalSeats: 250,
-      remainingSeats: 250,
-      price: 3000.0,
-    },
-  ];
+  console.log('Seeding rooms...');
 
-  console.log('Seeding database...');
-
-  for (const event of events) {
-    const upserted = await prisma.event.upsert({
-      where: { id: event.id },
-      update: {
-        name: event.name,
-        description: event.description,
-        eventDate: event.eventDate,
-        totalSeats: event.totalSeats,
-        price: event.price,
+  for (const name of ROOMS) {
+    const room = await prisma.room.upsert({
+      where: { name },
+      update: { description: ROOM_DESCRIPTIONS[name] },
+      create: {
+        name,
+        description: ROOM_DESCRIPTIONS[name],
       },
-      create: event,
     });
-    console.log(`Upserted event: ${upserted.name} (${upserted.id})`);
+    console.log(`Upserted room: ${room.name} (${room.id})`);
   }
 
-  console.log('Seeding complete.');
+  console.log('Seeding complete. All 10 rooms are ready.');
 }
 
 main()
@@ -70,4 +52,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

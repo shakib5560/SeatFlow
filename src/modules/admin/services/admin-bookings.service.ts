@@ -7,7 +7,7 @@ import {
 import { BookingStatus } from '@prisma/client';
 import {
   AdminBookingsRepository,
-  BookingWithEvent,
+  BookingWithRoom,
 } from '../repositories/admin-bookings.repository';
 import { AdminBookingQueryDto } from '../dto/admin-booking-query.dto';
 import { BookingApprovalDto } from '../dto/booking-approval.dto';
@@ -77,19 +77,21 @@ export class AdminBookingsService {
     }
 
     return {
-      bookingId:      booking.id,
+      bookingId:        booking.id,
       bookingReference: booking.bookingReference,
-      customerName:   booking.customerName,
-      customerEmail:  booking.customerEmail,
-      event: {
-        id:   booking.event.id,
-        name: booking.event.name,
+      customerName:    booking.customerName,
+      customerEmail:   booking.customerEmail,
+      room: {
+        id:   booking.room.id,
+        name: booking.room.name,
       },
-      requestedSeats: booking.seats,
-      status:         booking.status,
-      failureReason:  booking.failureReason,
-      createdAt:      booking.createdAt,
-      updatedAt:      booking.updatedAt,
+      startDate:       booking.startDate,
+      endDate:         booking.endDate,
+      bookingType:     booking.bookingType,
+      status:          booking.status,
+      failureReason:   booking.failureReason,
+      createdAt:       booking.createdAt,
+      updatedAt:       booking.updatedAt,
     };
   }
 
@@ -140,8 +142,6 @@ export class AdminBookingsService {
     try {
       result = await this.adminBookingsRepository.approveBooking(
         bookingId,
-        booking.eventId,
-        booking.seats,
       );
     } catch (error) {
       this.logger.error(
@@ -271,13 +271,15 @@ export class AdminBookingsService {
       bookingReference: b.bookingReference,
       customerName:   b.customerName,
       customerEmail:  b.customerEmail,
-      event: {
-        id:   (b as BookingWithEvent).event.id,
-        name: (b as BookingWithEvent).event.name,
+      room: {
+        id:   (b as BookingWithRoom).room.id,
+        name: (b as BookingWithRoom).room.name,
       },
-      requestedSeats: b.seats,
-      status:         b.status,
-      createdAt:      b.createdAt,
+      startDate:    b.startDate,
+      endDate:      b.endDate,
+      bookingType: b.bookingType,
+      status:       b.status,
+      createdAt:    b.createdAt,
     }));
 
     return { data: items, meta };

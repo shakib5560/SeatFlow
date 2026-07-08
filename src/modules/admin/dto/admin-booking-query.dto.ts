@@ -4,19 +4,19 @@ import { Type } from 'class-transformer';
 import { BookingStatus } from '@prisma/client';
 
 export enum AdminBookingSortBy {
-  CREATED_AT = 'createdAt',
+  CREATED_AT   = 'createdAt',
   CUSTOMER_NAME = 'customerName',
-  STATUS = 'status',
-  EVENT_DATE = 'eventDate',
+  STATUS       = 'status',
+  START_DATE   = 'startDate',
 }
 
 export enum SortOrder {
-  ASC = 'ASC',
+  ASC  = 'ASC',
   DESC = 'DESC',
 }
 
 /**
- * AdminBookingQueryDto — query parameters for admin pending bookings list.
+ * AdminBookingQueryDto — query parameters for admin booking list endpoints.
  *
  * Supports pagination, search, sorting, and filtering.
  * All fields are optional — defaults are applied in the service layer.
@@ -49,10 +49,10 @@ export class AdminBookingQueryDto {
   @IsString()
   customerName?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by event UUID', example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201' })
+  @ApiPropertyOptional({ description: 'Filter by room UUID', example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201' })
   @IsOptional()
   @IsUUID('4')
-  eventId?: string;
+  roomId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by booking reference (partial, case-insensitive)', example: 'BK-2026' })
   @IsOptional()

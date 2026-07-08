@@ -1,13 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, BookingType } from '@prisma/client';
 
 // ── Nested DTOs ──────────────────────────────────────────────────────────────
 
-export class AdminBookingEventDto {
+export class AdminRoomDto {
   @ApiProperty({ example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201' })
   id: string;
 
-  @ApiProperty({ example: 'NestJS Masterclass' })
+  @ApiProperty({ example: 'A1' })
   name: string;
 }
 
@@ -26,11 +26,17 @@ export class AdminBookingListItemDto {
   @ApiProperty({ example: 'john@example.com' })
   customerEmail: string;
 
-  @ApiProperty({ type: () => AdminBookingEventDto })
-  event: AdminBookingEventDto;
+  @ApiProperty({ type: () => AdminRoomDto })
+  room: AdminRoomDto;
 
-  @ApiProperty({ example: 2 })
-  requestedSeats: number;
+  @ApiProperty({ example: '2026-07-10T00:00:00.000Z' })
+  startDate: Date;
+
+  @ApiProperty({ example: '2026-07-17T00:00:00.000Z' })
+  endDate: Date;
+
+  @ApiProperty({ example: 'DAILY', enum: BookingType })
+  bookingType: BookingType;
 
   @ApiProperty({ example: 'PENDING', enum: BookingStatus })
   status: BookingStatus;
@@ -86,11 +92,17 @@ export class AdminBookingDetailDto {
   @ApiProperty({ example: 'john@example.com' })
   customerEmail: string;
 
-  @ApiProperty({ type: () => AdminBookingEventDto })
-  event: AdminBookingEventDto;
+  @ApiProperty({ type: () => AdminRoomDto })
+  room: AdminRoomDto;
 
-  @ApiProperty({ example: 2 })
-  requestedSeats: number;
+  @ApiProperty({ example: '2026-07-10T00:00:00.000Z' })
+  startDate: Date;
+
+  @ApiProperty({ example: '2026-07-17T00:00:00.000Z' })
+  endDate: Date;
+
+  @ApiProperty({ example: 'DAILY', enum: BookingType })
+  bookingType: BookingType;
 
   @ApiProperty({ example: 'PENDING', enum: BookingStatus })
   status: BookingStatus;
@@ -107,6 +119,7 @@ export class AdminBookingDetailDto {
 
 // ── Approval / Rejection Action Response ────────────────────────────────────
 
+// No changes needed for AdminActionResultDto; retains bookingReference, status, failureReason, updatedAt.
 export class AdminActionResultDto {
   @ApiProperty({ example: 'BK-20260708-000015' })
   bookingReference: string;

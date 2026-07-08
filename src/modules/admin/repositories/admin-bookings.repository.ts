@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { BookingStatus, Prisma, Booking, Event } from '@prisma/client';
+import { BookingStatus, Prisma, RoomBooking } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminBookingQueryDto, AdminBookingSortBy, SortOrder } from '../dto/admin-booking-query.dto';
 import { AdminFailureReason } from '../constants/admin-failure-reason.constants';
 
 /** Shape returned by findPendingBookings / findBookings */
-export type BookingWithEvent = Booking & { event: { id: string; name: string } };
+export type BookingWithRoom = RoomBooking & { room: { id: string; name: string } };
 
 /** Full booking detail shape (includes all event fields) */
-export type BookingWithFullEvent = Booking & { event: Event };
+export type BookingWithFullRoom = RoomBooking & { room: { id: string; name: string; description?: string | null } };
 
 /**
  * AdminBookingsRepository — pure data-access layer for admin booking operations.
@@ -31,20 +31,17 @@ export class AdminBookingsRepository {
    * Runs findMany + count in a single $transaction for consistency.
    * When called by the pending-bookings endpoint, callers set query.status = PENDING.
    */
-  async findBookings(query: AdminBookingQueryDto): Promise<{
-    data: BookingWithEvent[];
-    totalItems: number;
-  }> {
+  async findBookings(query: AdminBookingQueryDto): Promise<{ data: BookingWithRoom[]; totalItems: number; }> {
     const page    = query.page    ?? 1;
     const limit   = query.limit   ?? 10;
     const sortBy  = query.sortBy  ?? AdminBookingSortBy.CREATED_AT;
     const order   = (query.order  ?? SortOrder.DESC).toLowerCase() as Prisma.SortOrder;
 
     // ── WHERE clause ──────────────────────────────────────────────────────────
-    const where: Prisma.BookingWhereInput = {};
+    const where: Prisma.RoomBookingWhereInput = {};
 
     if (query.status)    where.status  = query.status;
-    if (query.eventId)   where.eventId = query.eventId;
+    if (query.roomId)    where.roomId  = query.roomId;
 
     if (query.customerEmail) {
       where.customerEmail = { contains: query.customerEmail, mode: 'insensitive' };
@@ -57,9 +54,9 @@ export class AdminBookingsRepository {
     }
 
     // ── ORDER BY clause ───────────────────────────────────────────────────────
-    let orderBy: Prisma.BookingOrderByWithRelationInput;
-    if (sortBy === AdminBookingSortBy.EVENT_DATE) {
-      orderBy = { event: { eventDate: order } };
+    let orderBy: Prisma.RoomBookingOrderByWithRelationInput;
+    if (sortBy === AdminBookingSortBy.START_DATE) {
+      orderBy = { startDate: order };
     } else {
       orderBy = { [sortBy]: order };
     }
@@ -68,7 +65,7 @@ export class AdminBookingsRepository {
 
     // ── Run findMany + count concurrently ─────────────────────────────────────
     const [data, totalItems] = await Promise.all([
-      this.prisma.booking.findMany({
+      this.prisma.roomBooking.findMany({
         where,
         orderBy,
         skip,
@@ -79,29 +76,31 @@ export class AdminBookingsRepository {
           customerName:     true,
           customerEmail:    true,
           requestId:        true,
-          seats:            true,
+          startDate:        true,
+          endDate:          true,
+          bookingType:      true,
           status:           true,
           failureReason:    true,
-          eventId:          true,
+          roomId:           true,
           createdAt:        true,
           updatedAt:        true,
-          event: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.booking.count({ where }),
+      this.prisma.roomBooking.count({ where }),
     ]);
 
-    return { data: data as BookingWithEvent[], totalItems };
+    return { data: data as BookingWithRoom[], totalItems };
   }
 
   /**
    * Find a single booking by UUID, including all event details.
    * Returns null if not found (caller decides how to handle).
    */
-  async findBookingById(bookingId: string): Promise<BookingWithFullEvent | null> {
-    return this.prisma.booking.findUnique({
+  async findBookingById(bookingId: string): Promise<BookingWithFullRoom | null> {
+    return this.prisma.roomBooking.findUnique({
       where: { id: bookingId },
-      include: { event: true },
+      include: { room: true },
     });
   }
 
@@ -110,7 +109,7 @@ export class AdminBookingsRepository {
    * Used for dashboard summary / audit reporting.
    */
   async countPendingBookings(): Promise<number> {
-    return this.prisma.booking.count({
+    return this.prisma.roomBooking.count({
       where: { status: BookingStatus.PENDING },
     });
   }
@@ -134,78 +133,25 @@ export class AdminBookingsRepository {
    * Returns the updated booking record.
    * Throws PrismaClientKnownRequestError on DB failure (caller handles).
    */
-  async approveBooking(bookingId: string, eventId: string, seats: number): Promise<Booking> {
-    return this.prisma.$transaction(async (tx) => {
-      // Step 1 — Lock the event row for the duration of this transaction.
-      const rows = await tx.$queryRaw<Array<{ remainingSeats: number }>>`
-        SELECT "remainingSeats"
-        FROM   "events"
-        WHERE  "id" = ${eventId}
-        FOR UPDATE
-      `;
-
-      if (rows.length === 0) {
-        // Event was deleted between the service guard and this transaction.
-        return tx.booking.update({
-          where: { id: bookingId },
-          data: {
-            status:        BookingStatus.FAILED,
-            failureReason: AdminFailureReason.SOLD_OUT,
-            updatedAt:     new Date(),
-          },
-        });
-      }
-
-      // Step 2 — Use the LOCKED row's value (not a stale cached value).
-      const remainingSeats = Number(rows[0].remainingSeats);
-
-      // Step 3 — Re-read the booking inside the transaction for state re-check.
-      const freshBooking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
-
-      if (freshBooking.status !== BookingStatus.PENDING) {
-        // Another admin approved/rejected concurrently between guard and lock.
-        // Return the already-updated booking so the service can raise a 409.
-        return freshBooking;
-      }
-
-      // Step 4 — Seat check and atomic update.
-      if (remainingSeats < seats) {
-        // Not enough seats — mark FAILED / SOLD_OUT.
-        return tx.booking.update({
-          where: { id: bookingId },
-          data: {
-            status:        BookingStatus.FAILED,
-            failureReason: AdminFailureReason.SOLD_OUT,
-            updatedAt:     new Date(),
-          },
-        });
-      }
-
-      // Sufficient seats — deduct atomically and confirm.
-      await tx.event.update({
-        where: { id: eventId },
-        data:  { remainingSeats: { decrement: seats } },
-      });
-
-      return tx.booking.update({
-        where: { id: bookingId },
-        data: {
-          status:        BookingStatus.CONFIRMED,
-          failureReason: null,
-          updatedAt:     new Date(),
-        },
-      });
+  async approveBooking(bookingId: string): Promise<RoomBooking> {
+    // Simple status update to CONFIRMED. Dates are already blocked while PENDING.
+    return this.prisma.roomBooking.update({
+      where: { id: bookingId },
+      data: {
+        status:        BookingStatus.CONFIRMED,
+        failureReason: null,
+        updatedAt:     new Date(),
+      },
     });
   }
-
   /**
    * rejectBooking — marks a booking as FAILED with reason ADMIN_REJECTED.
    *
    * Does NOT touch the event's seat count.
    * The caller is responsible for verifying the booking was PENDING before calling this.
    */
-  async rejectBooking(bookingId: string): Promise<Booking> {
-    return this.prisma.booking.update({
+  async rejectBooking(bookingId: string): Promise<RoomBooking> {
+    return this.prisma.roomBooking.update({
       where: { id: bookingId },
       data: {
         status:        BookingStatus.FAILED,

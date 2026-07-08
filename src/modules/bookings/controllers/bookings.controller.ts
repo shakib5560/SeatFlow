@@ -59,7 +59,7 @@ export class BookingsController {
   })
   async create(@Body() createBookingDto: CreateBookingDto): Promise<BookingResponseDto> {
     this.logger.log(
-      `Incoming request: POST /bookings | requestId=${createBookingDto.requestId}, eventId=${createBookingDto.eventId}`
+      `Incoming request: POST /bookings | requestId=${createBookingDto.requestId}, roomId=${createBookingDto.roomId}`
     );
 
     const response = await this.bookingsService.create(createBookingDto);

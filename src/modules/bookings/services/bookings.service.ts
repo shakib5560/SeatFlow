@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, ServiceUnavailableException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Prisma } from '@prisma/client';
+import { Prisma, RoomBooking, BookingStatus } from '@prisma/client';
 import { BookingsRepository } from '../repositories/bookings.repository';
+import { RoomsRepository } from '../../rooms/repositories/rooms.repository';
 import { BookingReferenceService } from './booking-reference.service';
-import { BookingProducer } from '../../queue/producers/booking.producer';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { BookingQueryDto } from '../dto/booking-query.dto';
 import { BookingResponseDto } from '../responses/booking-response.dto';
@@ -18,39 +18,20 @@ export class BookingsService {
 
   constructor(
     private readonly bookingsRepository: BookingsRepository,
+    private readonly roomsRepository: RoomsRepository,
     private readonly bookingReferenceService: BookingReferenceService,
     private readonly redisService: RedisService,
-    private readonly bookingProducer: BookingProducer,
   ) {}
 
   /**
    * Handle POST /bookings
-   *
-   * Idempotency strategy (two-layer defence):
-   *
-   * Layer 1 — Pre-check (optimistic fast path):
-   *   Query for requestId before attempting to write. If found, return immediately.
-   *   Handles the vast majority of duplicates with zero DB writes.
-   *
-   * Layer 2 — Unique constraint + P2002 recovery (race-condition safety net):
-   *   If two requests with the same requestId arrive simultaneously, both may
-   *   pass the pre-check. The DB unique constraint on requestId ensures only ONE
-   *   INSERT succeeds. The loser gets a P2002 error, which we catch, then we
-   *   fetch and return the winner's booking. Client gets 202 either way — no error.
+   * Creates a RoomBooking in PENDING status.
    */
   async create(data: CreateBookingDto): Promise<BookingResponseDto> {
     const requestId = data.requestId || randomUUID();
-    let eventId = data.eventId;
+    const roomId = data.roomId;
 
-    if (!eventId) {
-      const firstEvent = await this.bookingsRepository.findFirstEvent();
-      if (!firstEvent) {
-        throw new NotFoundException('No events are currently registered in the database.');
-      }
-      eventId = firstEvent.id;
-    }
-
-    this.logger.log(`Processing booking request: requestId=${requestId}, eventId=${eventId}`);
+    this.logger.log(`Processing booking request: requestId=${requestId}, roomId=${roomId}`);
 
     // ── Layer 1: Pre-check for duplicate requestId (optimistic fast path) ────
     const existingBooking = await this.bookingsRepository.findByRequestId(requestId);
@@ -66,32 +47,50 @@ export class BookingsService {
       };
     }
 
-    // ── Verify the event exists (only needed for new requests) ────────────────
-    const event = await this.bookingsRepository.findEventById(eventId);
-    if (!event) {
-      this.logger.warn(`Event not found: eventId=${eventId}`);
-      throw new NotFoundException(`Event with ID ${eventId} does not exist`);
+    // ── Verify the room exists ───────────────────────────────────────────────
+    const room = await this.roomsRepository.findById(roomId);
+    if (!room) {
+      this.logger.warn(`Room not found: roomId=${roomId}`);
+      throw new NotFoundException(`Room with ID ${roomId} does not exist`);
+    }
+
+    // ── Parse dates and validate range ────────────────────────────────────────
+    const startDate = this.parseDate(data.startDate);
+    const endDate = this.parseDate(data.endDate);
+
+    if (endDate < startDate) {
+      throw new BadRequestException('endDate must be on or after startDate.');
+    }
+
+    // ── Concurrency-Safe Overlap Check & Lock ──────────────────────────────
+    // Check if the room is available for these dates
+    const availability = await this.roomsRepository.checkAvailability(roomId, startDate, endDate);
+    if (!availability.available) {
+      const nextDateStr = availability.nextAvailableDate.toISOString().slice(0, 10);
+      throw new ConflictException(
+        `This room is not available for the selected dates. Next available date: ${nextDateStr}`
+      );
     }
 
     // ── Generate reference and attempt DB insert ───────────────────────────────
     const bookingReference = await this.bookingReferenceService.generateReference();
 
-    let booking;
+    let booking: RoomBooking;
     try {
       booking = await this.bookingsRepository.createPendingBooking({
-        eventId,
+        roomId,
         bookingReference,
         requestId,
         customerName: data.customerName,
         customerEmail: data.customerEmail,
-        seats: data.seats,
+        bookingType: data.bookingType,
+        startDate,
+        endDate,
       });
 
       this.logger.log(`Pending booking created: reference=${booking.bookingReference}, requestId=${requestId}`);
     } catch (error) {
       // ── Layer 2: Unique constraint violation recovery (P2002) ───────────────
-      // Concurrent request with the same requestId already committed. Recover
-      // gracefully by fetching and returning that booking — no error to caller.
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -118,22 +117,9 @@ export class BookingsService {
       throw error;
     }
 
-    // ── Enqueue the processing job (only for genuinely new bookings) ──────────
-    try {
-      await this.bookingProducer.enqueueBooking(booking.id);
-    } catch (error) {
-      this.logger.error(
-        `Failed to enqueue booking job for reference ${bookingReference}`,
-        error instanceof Error ? error.stack : error
-      );
-      throw new ServiceUnavailableException(
-        'The booking queue service is currently unavailable. Please try again later.'
-      );
-    }
-
     // ── Invalidate stale caches ───────────────────────────────────────────────
     await this.redisService.invalidate(`bookings:user:${data.customerEmail}*`);
-    await this.redisService.invalidate(`bookings:event:${eventId}*`);
+    await this.redisService.invalidate(`bookings:room:${roomId}*`);
 
     return {
       bookingReference: booking.bookingReference,
@@ -145,19 +131,19 @@ export class BookingsService {
    * Paginated, filterable booking list for GET /bookings.
    */
   async listBookings(query: BookingQueryDto): Promise<PaginatedBookingsDto> {
-    const page  = query.page  ?? 1;
+    const page = query.page ?? 1;
     const limit = query.limit ?? 10;
 
     this.logger.log(
       `Listing bookings: page=${page}, limit=${limit}, ` +
-      `status=${query.status ?? 'all'}, eventId=${query.eventId ?? 'all'}, ` +
+      `status=${query.status ?? 'all'}, roomId=${query.roomId ?? 'all'}, ` +
       `customerEmail=${query.customerEmail ?? 'all'}, sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`
     );
 
     const { data, totalItems } = await this.bookingsRepository.findAllPaginated(query);
 
-    const totalPages      = Math.ceil(totalItems / limit);
-    const hasNextPage     = page < totalPages;
+    const totalPages = Math.ceil(totalItems / limit);
+    const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
     this.logger.log(`Booking list retrieved: totalItems=${totalItems}, totalPages=${totalPages}`);
@@ -166,12 +152,14 @@ export class BookingsService {
 
     const items: BookingItemDto[] = data.map((b) => ({
       bookingReference: b.bookingReference,
-      event: { id: b.event.id, name: b.event.name },
-      customerName:  b.customerName,
+      room: { id: b.room.id, name: b.room.name },
+      customerName: b.customerName,
       customerEmail: b.customerEmail,
-      seats:         b.seats,
-      status:        b.status,
-      createdAt:     b.createdAt,
+      bookingType: b.bookingType,
+      startDate: b.startDate,
+      endDate: b.endDate,
+      status: b.status,
+      createdAt: b.createdAt,
     }));
 
     return { data: items, meta };
@@ -196,27 +184,24 @@ export class BookingsService {
   }
 
   /**
-   * Get bookings by event ID.
+   * Get bookings by room ID.
    */
-  async findByEventId(eventId: string) {
+  async findByRoomId(roomId: string) {
     return this.redisService.remember(
-      `bookings:event:${eventId}`,
+      `bookings:room:${roomId}`,
       REDIS_TTL.MEDIUM,
-      () => this.bookingsRepository.findByEventId(eventId)
+      () => this.bookingsRepository.findByRoomId(roomId)
     );
   }
 
-  /**
-   * Calculate booked seats count for an event.
-   */
-  async getBookedSeatCount(eventId: string): Promise<number> {
-    return this.redisService.remember<number>(
-      `bookings:count:${eventId}`,
-      REDIS_TTL.DAY,
-      async () => {
-        const bookings = await this.bookingsRepository.findByEventId(eventId);
-        return bookings.reduce((sum, b) => sum + b.seats, 0);
-      },
-    );
+  // ── Private Helpers ────────────────────────────────────────────────────────
+
+  /** Parse an ISO date string (YYYY-MM-DD) to UTC midnight DateTime. */
+  private parseDate(dateStr: string): Date {
+    const d = new Date(`${dateStr}T00:00:00.000Z`);
+    if (isNaN(d.getTime())) {
+      throw new BadRequestException(`Invalid date format: ${dateStr}. Use YYYY-MM-DD.`);
+    }
+    return d;
   }
 }

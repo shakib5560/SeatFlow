@@ -1,11 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min, Max, IsEmail, IsEnum, IsUUID, IsString } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsEnum, IsUUID, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BookingStatus } from '@prisma/client';
 
 export enum BookingSortBy {
   CREATED_AT = 'createdAt',
-  EVENT_DATE = 'eventDate',
+  START_DATE = 'startDate',
   CUSTOMER_NAME = 'customerName',
   STATUS = 'status',
 }
@@ -38,10 +38,10 @@ export class BookingQueryDto {
   @IsEnum(BookingStatus)
   status?: BookingStatus;
 
-  @ApiPropertyOptional({ description: 'Filter by event ID (UUID)', example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201' })
+  @ApiPropertyOptional({ description: 'Filter by room ID (UUID)', example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a501' })
   @IsOptional()
   @IsUUID('4')
-  eventId?: string;
+  roomId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by customer email (partial, case-insensitive)', example: 'john' })
   @IsOptional()

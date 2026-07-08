@@ -1,76 +1,55 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Event } from '@prisma/client';
+import { Room } from '@prisma/client';
 
+/**
+ * EventsRepository — now wraps the Room model.
+ *
+ * The legacy `Event` model has been replaced by `Room` in the room-based
+ * booking system. This repository provides a minimal compatibility layer so that
+ * the EventsService (and its controller) continues to compile. It exposes
+ * room data via the same method signatures previously used for events.
+ */
 @Injectable()
 export class EventsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Fetch all events sorted by eventDate ASC (upcoming events first).
+   * Fetch all rooms sorted by name ASC.
    */
-  async findAllUpcoming(): Promise<Event[]> {
-    return this.prisma.event.findMany({
-      orderBy: {
-        eventDate: 'asc',
-      },
+  async findAllUpcoming(): Promise<Room[]> {
+    return this.prisma.room.findMany({
+      orderBy: { name: 'asc' },
     });
   }
 
   /**
-   * Create a new event.
-   * remainingSeats is initialized to totalSeats.
+   * Find a room by its ID.
    */
-  async create(data: {
-    name: string;
-    description?: string;
-    eventDate: Date;
-    totalSeats: number;
-    price: number;
-  }): Promise<Event> {
-    return this.prisma.event.create({
-      data: {
-        ...data,
-        remainingSeats: data.totalSeats,
-      },
-    });
-  }
-
-  /**
-   * Find an event by its ID.
-   */
-  async findById(id: string): Promise<Event | null> {
-    return this.prisma.event.findUnique({
+  async findById(id: string): Promise<Room | null> {
+    return this.prisma.room.findUnique({
       where: { id },
     });
   }
 
   /**
-   * Update event details.
+   * Create a new room.
    */
-  async update(
-    id: string,
-    data: {
-      name?: string;
-      description?: string;
-      eventDate?: Date;
-      totalSeats?: number;
-      remainingSeats?: number;
-      price?: number;
-    },
-  ): Promise<Event> {
-    return this.prisma.event.update({
-      where: { id },
-      data,
-    });
+  async create(data: { name: string; description?: string }): Promise<Room> {
+    return this.prisma.room.create({ data });
   }
 
   /**
-   * Delete an event by ID.
+   * Update a room's details.
    */
-  async delete(id: string): Promise<Event> {
-    return this.prisma.event.delete({
-      where: { id },
-    });
+  async update(id: string, data: { name?: string; description?: string }): Promise<Room> {
+    return this.prisma.room.update({ where: { id }, data });
+  }
+
+  /**
+   * Delete a room by ID.
+   */
+  async delete(id: string): Promise<Room> {
+    return this.prisma.room.delete({ where: { id } });
   }
 }

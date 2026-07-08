@@ -89,6 +89,32 @@ export class AdminBookingsController {
     return this.adminBookingsService.listPendingBookings(query);
   }
 
+  // ── GET /admin/bookings ─────────────────────────────────────────────────────
+
+  @Get()
+  @ResponseMessage('All bookings retrieved successfully.')
+  @ApiOperation({
+    summary: 'List all bookings',
+    description:
+      'Returns a paginated, filterable, sortable list of all bookings (both pending and approved/failed). ' +
+      'Supports filtering by status, customerEmail, customerName, eventId, and bookingReference.',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of all bookings.',
+    type: PaginatedAdminBookingsDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid query parameters.' })
+  @ApiInternalServerErrorResponse({ description: 'Unexpected server error.' })
+  async listAllBookings(
+    @Query() query: AdminBookingQueryDto,
+  ): Promise<PaginatedAdminBookingsDto> {
+    this.logger.log(
+      `Admin GET / | page=${query.page ?? 1}, limit=${query.limit ?? 10}, ` +
+      `sortBy=${query.sortBy ?? 'createdAt'}, order=${query.order ?? 'DESC'}`
+    );
+    return this.adminBookingsService.listAllBookings(query);
+  }
+
   // ── GET /admin/bookings/:bookingId ──────────────────────────────────────────
 
   @Get(':bookingId')

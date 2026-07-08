@@ -11,6 +11,7 @@ import { BookingsService } from '../../src/modules/bookings/services/bookings.se
 import { ResponseInterceptor } from '../../src/common/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from '../../src/common/filters/global-exception.filter';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { BookingType } from '@prisma/client';
 
 describe('Validation (e2e)', () => {
   let app: INestApplication;
@@ -55,19 +56,35 @@ describe('Validation (e2e)', () => {
 
       await expect(
         pipe.transform(
-          { eventId: 'e1', requestId: 'r1', customerName: 'John', customerEmail: 'invalid', seats: 1 },
+          {
+            roomId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201',
+            requestId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301',
+            customerName: 'John',
+            customerEmail: 'invalid',
+            bookingType: BookingType.DAILY,
+            startDate: '2026-08-01',
+            endDate: '2026-08-07',
+          },
           metadata as any,
         ),
       ).rejects.toThrow();
     });
 
-    it('should reject seats < 1 via ValidationPipe', async () => {
+    it('should reject invalid roomId via ValidationPipe', async () => {
       const pipe = new ValidationPipe({ whitelist: true, transform: true });
       const metadata = { metatype: require('../../src/modules/bookings/dto/create-booking.dto').CreateBookingDto, type: 'body', data: '' };
 
       await expect(
         pipe.transform(
-          { eventId: 'e1', requestId: 'r1', customerName: 'John', customerEmail: 'test@example.com', seats: 0 },
+          {
+            roomId: 'invalid-uuid',
+            requestId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301',
+            customerName: 'John',
+            customerEmail: 'test@example.com',
+            bookingType: BookingType.DAILY,
+            startDate: '2026-08-01',
+            endDate: '2026-08-07',
+          },
           metadata as any,
         ),
       ).rejects.toThrow();
@@ -78,12 +95,20 @@ describe('Validation (e2e)', () => {
       const metadata = { metatype: require('../../src/modules/bookings/dto/create-booking.dto').CreateBookingDto, type: 'body', data: '' };
 
       const result = await pipe.transform(
-        { eventId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201', requestId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301', customerName: 'John', customerEmail: 'valid@example.com', seats: 2 },
+        {
+          roomId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201',
+          requestId: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a301',
+          customerName: 'John',
+          customerEmail: 'valid@example.com',
+          bookingType: BookingType.DAILY,
+          startDate: '2026-08-01',
+          endDate: '2026-08-07',
+        },
         metadata as any,
       );
 
       expect(result.customerEmail).toBe('valid@example.com');
-      expect(result.seats).toBe(2);
+      expect(result.bookingType).toBe(BookingType.DAILY);
     });
   });
 

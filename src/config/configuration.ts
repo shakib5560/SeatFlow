@@ -1,5 +1,6 @@
 export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
+  requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '15000', 10),
   database: {
     url: process.env.DATABASE_URL,
   },

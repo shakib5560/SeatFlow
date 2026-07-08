@@ -30,7 +30,6 @@ describe('BookingProcessingService', () => {
       await service.processBooking(bookingId);
 
       expect(bookingsRepository.findById).toHaveBeenCalledWith(bookingId);
-      expect(bookingsRepository.processBookingWithLock).not.toHaveBeenCalled();
     });
 
     it('should skip processing if booking is already CONFIRMED', async () => {
@@ -38,13 +37,11 @@ describe('BookingProcessingService', () => {
         id: bookingId,
         status: BookingStatus.CONFIRMED,
         bookingReference: 'BK-1',
-        seats: 2,
-        eventId: 'evt-1'
       } as any);
 
       await service.processBooking(bookingId);
 
-      expect(bookingsRepository.processBookingWithLock).not.toHaveBeenCalled();
+      expect(bookingsRepository.findById).toHaveBeenCalledWith(bookingId);
     });
 
     it('should skip processing if booking is already FAILED', async () => {
@@ -52,53 +49,23 @@ describe('BookingProcessingService', () => {
         id: bookingId,
         status: BookingStatus.FAILED,
         bookingReference: 'BK-1',
-        seats: 2,
-        eventId: 'evt-1'
       } as any);
 
       await service.processBooking(bookingId);
 
-      expect(bookingsRepository.processBookingWithLock).not.toHaveBeenCalled();
+      expect(bookingsRepository.findById).toHaveBeenCalledWith(bookingId);
     });
 
-    it('should process booking with lock if PENDING', async () => {
+    it('should leave booking PENDING in manual-approval mode', async () => {
       bookingsRepository.findById.mockResolvedValue({
         id: bookingId,
         status: BookingStatus.PENDING,
         bookingReference: 'BK-1',
-        seats: 2,
-        eventId: 'evt-1'
-      } as any);
-
-      bookingsRepository.processBookingWithLock.mockResolvedValue({
-        status: BookingStatus.CONFIRMED,
-        bookingReference: 'BK-1',
-        failureReason: null
       } as any);
 
       await service.processBooking(bookingId);
 
-      expect(bookingsRepository.processBookingWithLock).toHaveBeenCalledWith(bookingId, 'evt-1', 2);
-    });
-
-    it('should handle FAILED lock result', async () => {
-      bookingsRepository.findById.mockResolvedValue({
-        id: bookingId,
-        status: BookingStatus.PENDING,
-        bookingReference: 'BK-1',
-        seats: 2,
-        eventId: 'evt-1'
-      } as any);
-
-      bookingsRepository.processBookingWithLock.mockResolvedValue({
-        status: BookingStatus.FAILED,
-        bookingReference: 'BK-1',
-        failureReason: 'SOLD_OUT'
-      } as any);
-
-      await service.processBooking(bookingId);
-
-      expect(bookingsRepository.processBookingWithLock).toHaveBeenCalledWith(bookingId, 'evt-1', 2);
+      expect(bookingsRepository.findById).toHaveBeenCalledWith(bookingId);
     });
   });
 });

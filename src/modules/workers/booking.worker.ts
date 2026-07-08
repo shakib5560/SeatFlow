@@ -4,8 +4,6 @@ import { Job } from 'bullmq';
 import { BOOKING_QUEUE_NAME, BOOKING_JOB_NAME } from '../queue/queue.constants';
 import { JobPayload } from '../../common/interfaces';
 import { BookingProcessingService } from './services/booking-processing.service';
-import { BookingsRepository } from '../bookings/repositories/bookings.repository';
-import { FailureReason } from './constants/failure-reason.constants';
 import { correlationStorage } from '../../common/logger/correlation.store';
 
 /**
@@ -14,7 +12,7 @@ import { correlationStorage } from '../../common/logger/correlation.store';
  * Architectural rule:
  *  - The worker is a thin shell: receive job, delegate to service, handle retry/fail.
  *  - ALL business logic lives in BookingProcessingService.
- *  - Validation failures complete the job cleanly (no re-throw → no BullMQ retry).
+ *  - In manual-approval mode, the service simply guards idempotency and exits.
  *  - Transient errors (DB connectivity etc.) are re-thrown so BullMQ retries with backoff.
  */
 @Processor(BOOKING_QUEUE_NAME)
@@ -23,7 +21,6 @@ export class BookingWorker extends WorkerHost implements OnApplicationShutdown {
 
   constructor(
     private readonly bookingProcessingService: BookingProcessingService,
-    private readonly bookingsRepository: BookingsRepository,
   ) {
     super();
   }
@@ -62,18 +59,6 @@ export class BookingWorker extends WorkerHost implements OnApplicationShutdown {
           `Unexpected error processing job jobId=${job.id}, bookingId=${bookingId}. Attempt ${job.attemptsMade + 1}.`,
           stack
         );
-
-        // Mark the booking FAILED with UNKNOWN_ERROR before deciding whether to re-throw.
-        try {
-          await this.bookingsRepository.failBooking(bookingId, FailureReason.UNKNOWN_ERROR);
-          this.logger.warn(`Booking ${bookingId} marked FAILED — reason: ${FailureReason.UNKNOWN_ERROR}`);
-        } catch (updateError) {
-          this.logger.error(
-            `Also failed to update booking status to FAILED for bookingId=${bookingId}`,
-            updateError instanceof Error ? updateError.stack : updateError
-          );
-        }
-
         // Re-throw so BullMQ can retry (if attempts remain) or move to failed set.
         throw error;
       }

@@ -12,39 +12,46 @@ enum BookingStatus {
   FAILED
 }
 
-model Event {
-  id             String    @id @default(uuid())
-  name           String
-  description    String?
-  eventDate      DateTime
-  totalSeats     Int
-  remainingSeats Int
-  price          Float
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  bookings       Booking[]
-
-  @@map("events")
-  @@index([eventDate])
+enum BookingType {
+  DAILY
+  WEEKLY
+  MONTHLY
 }
 
-model Booking {
+model Room {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  bookings    RoomBooking[]
+
+  @@map("rooms")
+  @@index([name])
+}
+
+model RoomBooking {
   id               String        @id @default(uuid())
   bookingReference String        @unique
   requestId        String        @unique
   customerName     String
   customerEmail    String
-  seats            Int
+  roomId           String
+  room             Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bookingType      BookingType
+  startDate        DateTime
+  endDate          DateTime
   status           BookingStatus @default(PENDING)
+  adminNotes       String?
   failureReason    String?
-  eventId          String
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
-  event            Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@map("bookings")
+  @@map("room_bookings")
+  @@index([roomId])
   @@index([status])
-  @@index([eventId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([customerEmail])
   @@index([createdAt])
 }
-

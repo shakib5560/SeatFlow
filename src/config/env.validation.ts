@@ -31,6 +31,11 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   JWT_SECRET?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  REQUEST_TIMEOUT?: number;
 }
 
 export function validate(config: Record<string, unknown>) {
@@ -41,6 +46,7 @@ export function validate(config: Record<string, unknown>) {
       PORT: config.PORT !== undefined ? Number(config.PORT) : undefined,
       REDIS_PORT: config.REDIS_PORT !== undefined ? Number(config.REDIS_PORT) : undefined,
       REDIS_DB: config.REDIS_DB !== undefined ? Number(config.REDIS_DB) : 0,
+      REQUEST_TIMEOUT: config.REQUEST_TIMEOUT !== undefined ? Number(config.REQUEST_TIMEOUT) : undefined,
     },
     { enableImplicitConversion: true },
   );

@@ -3,7 +3,7 @@ import { BookingsRepository } from './bookings.repository';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DeepMockProxy } from 'jest-mock-extended';
 import { createMockContext } from '../../../../test/mocks/prisma.mock';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, BookingType } from '@prisma/client';
 
 describe('BookingsRepository', () => {
   let repository: BookingsRepository;
@@ -26,13 +26,14 @@ describe('BookingsRepository', () => {
   describe('findByRequestId', () => {
     it('should find booking by request id', async () => {
       const mockBooking = { id: '1', requestId: 'req-1' };
-      prismaMock.booking.findUnique.mockResolvedValue(mockBooking as any);
+      prismaMock.roomBooking.findUnique.mockResolvedValue(mockBooking as any);
 
       const result = await repository.findByRequestId('req-1');
 
       expect(result).toEqual(mockBooking);
-      expect(prismaMock.booking.findUnique).toHaveBeenCalledWith({
+      expect(prismaMock.roomBooking.findUnique).toHaveBeenCalledWith({
         where: { requestId: 'req-1' },
+        include: { room: true },
       });
     });
   });
@@ -40,24 +41,27 @@ describe('BookingsRepository', () => {
   describe('createPendingBooking', () => {
     it('should create booking with PENDING status', async () => {
       const data = {
-        eventId: 'evt-1',
+        roomId: 'room-123',
         bookingReference: 'BK-1',
         requestId: 'req-1',
         customerName: 'John',
         customerEmail: 'j@e.com',
-        seats: 2,
+        bookingType: BookingType.DAILY,
+        startDate: new Date('2026-08-01T00:00:00.000Z'),
+        endDate: new Date('2026-08-07T00:00:00.000Z'),
       };
 
-      prismaMock.booking.create.mockResolvedValue({ id: '1', ...data, status: BookingStatus.PENDING } as any);
+      prismaMock.roomBooking.create.mockResolvedValue({ id: '1', ...data, status: BookingStatus.PENDING } as any);
 
       const result = await repository.createPendingBooking(data);
 
       expect(result.status).toEqual(BookingStatus.PENDING);
-      expect(prismaMock.booking.create).toHaveBeenCalledWith({
+      expect(prismaMock.roomBooking.create).toHaveBeenCalledWith({
         data: {
           ...data,
           status: BookingStatus.PENDING,
         },
+        include: { room: true },
       });
     });
   });
@@ -74,21 +78,6 @@ describe('BookingsRepository', () => {
       expect(result.data).toEqual(mockBookings);
       expect(result.totalItems).toEqual(totalItems);
       expect(prismaMock.$transaction).toHaveBeenCalled();
-    });
-  });
-
-  describe('failBooking', () => {
-    it('should update booking to FAILED with reason', async () => {
-      prismaMock.booking.update.mockResolvedValue({ id: '1', status: BookingStatus.FAILED, failureReason: 'SOLD_OUT' } as any);
-
-      const result = await repository.failBooking('1', 'SOLD_OUT');
-
-      expect(result.status).toEqual(BookingStatus.FAILED);
-      expect(result.failureReason).toEqual('SOLD_OUT');
-      expect(prismaMock.booking.update).toHaveBeenCalledWith({
-        where: { id: '1' },
-        data: { status: BookingStatus.FAILED, failureReason: 'SOLD_OUT' },
-      });
     });
   });
 });

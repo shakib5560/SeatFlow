@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID, IsString, IsNotEmpty, IsInt, Min, MaxLength, MinLength, IsEmail, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsUUID, IsString, IsNotEmpty, IsEmail, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { BookingType } from '@prisma/client';
 
 export class CreateBookingDto {
   @ApiProperty({
@@ -12,24 +13,21 @@ export class CreateBookingDto {
   requestId?: string;
 
   @ApiProperty({
-    description: 'The ID of the event to book seats for (UUID). Automatically falls back to the first available event if not provided.',
-    example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a201',
-    required: false,
+    description: 'The ID of the room to book (UUID).',
+    example: 'd3b07384-d113-4bf5-a5d9-43c3d5e2a501',
   })
   @IsUUID('4')
-  @IsOptional()
-  eventId?: string;
+  @IsNotEmpty()
+  roomId: string;
 
   @ApiProperty({
-    description: 'Full name of the customer booking the seats',
+    description: 'Full name of the customer booking the room',
     example: 'John Doe',
     minLength: 2,
     maxLength: 100,
   })
   @IsString()
   @IsNotEmpty()
-  @MinLength(2)
-  @MaxLength(100)
   customerName: string;
 
   @ApiProperty({
@@ -41,11 +39,27 @@ export class CreateBookingDto {
   customerEmail: string;
 
   @ApiProperty({
-    description: 'Number of seats to reserve (minimum 1)',
-    example: 2,
-    minimum: 1,
+    description: 'Booking duration label: DAILY, WEEKLY, or MONTHLY',
+    enum: BookingType,
+    example: BookingType.DAILY,
   })
-  @IsInt()
-  @Min(1)
-  seats: number;
+  @IsEnum(BookingType)
+  @IsNotEmpty()
+  bookingType: BookingType;
+
+  @ApiProperty({
+    description: 'Start date of the booking period (ISO 8601 YYYY-MM-DD)',
+    example: '2026-07-10',
+  })
+  @IsDateString()
+  @IsNotEmpty()
+  startDate: string;
+
+  @ApiProperty({
+    description: 'End date of the booking period (ISO 8601 YYYY-MM-DD, inclusive)',
+    example: '2026-07-17',
+  })
+  @IsDateString()
+  @IsNotEmpty()
+  endDate: string;
 }
